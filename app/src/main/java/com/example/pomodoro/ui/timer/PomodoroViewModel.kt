@@ -15,10 +15,19 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import android.content.Context
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
+import com.example.pomodoro.utils.NotificationHelper
+import com.example.pomodoro.utils.MusicPlayer
 
 class PomodoroViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: TaskRepository
+    private val notificationHelper = NotificationHelper(application)
+    private val musicPlayer = MusicPlayer(application)
 
     init {
         val taskDao = AppDatabase.getDatabase(application).taskDao()
@@ -64,6 +73,11 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
 
         _timerState.value = TimerState.RUNNING
 
+        // Iniciar música si está habilitada
+        if (_settings.value.soundEnabled) {
+            musicPlayer.playMusicForSession(_sessionType.value, true)
+        }
+
         timerJob = viewModelScope.launch {
             while (_timeRemaining.value > 0 && _timerState.value == TimerState.RUNNING) {
                 delay(1000)
@@ -79,6 +93,7 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
     fun pauseTimer() {
         _timerState.value = TimerState.PAUSED
         timerJob?.cancel()
+        musicPlayer.pause()
     }
 
     fun resetTimer() {
@@ -99,6 +114,27 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun onTimerComplete() {
+        // Mostrar notificación
+        notificationHelper.showSessionCompleteNotification(_sessionType.value)
+
+        // Vibrar si está habilitado
+        if (_settings.value.vibrationEnabled) {
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager = getApplication<Application>().getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                vibratorManager.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                getApplication<Application>().getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(500)
+            }
+        }
+
         when (_sessionType.value) {
             SessionType.WORK -> {
                 // Incrementar pomodoros completados
@@ -202,5 +238,6 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
     override fun onCleared() {
         super.onCleared()
         timerJob?.cancel()
+        musicPlayer.stop()
     }
 }
