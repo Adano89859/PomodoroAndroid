@@ -1,5 +1,6 @@
 package com.example.pomodoro.ui.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -11,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.pomodoro.data.model.PomodoroSettings
+import com.example.pomodoro.data.model.SessionType
 import com.example.pomodoro.ui.timer.PomodoroViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -224,6 +226,89 @@ fun SettingsScreen(
                 }
             }
 
+            // Sección de selección de música
+            Text(
+                text = "Música de Fondo",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            var showWorkMusicDialog by remember { mutableStateOf(false) }
+            var showShortBreakMusicDialog by remember { mutableStateOf(false) }
+            var showLongBreakMusicDialog by remember { mutableStateOf(false) }
+
+            Card {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    MusicSelectionRow(
+                        label = "Música para Trabajo",
+                        currentTrackId = localSettings.workMusicTrackId,
+                        onClick = { showWorkMusicDialog = true }
+                    )
+
+                    HorizontalDivider()
+
+                    MusicSelectionRow(
+                        label = "Música para Descanso Corto",
+                        currentTrackId = localSettings.shortBreakMusicTrackId,
+                        onClick = { showShortBreakMusicDialog = true }
+                    )
+
+                    HorizontalDivider()
+
+                    MusicSelectionRow(
+                        label = "Música para Descanso Largo",
+                        currentTrackId = localSettings.longBreakMusicTrackId,
+                        onClick = { showLongBreakMusicDialog = true }
+                    )
+                }
+            }
+
+            // Diálogos de selección
+            if (showWorkMusicDialog) {
+                MusicSelectorDialog(
+                    sessionType = SessionType.WORK,
+                    currentTrackId = localSettings.workMusicTrackId,
+                    onDismiss = { showWorkMusicDialog = false },
+                    onTrackSelected = { trackId ->
+                        localSettings = localSettings.copy(workMusicTrackId = trackId)
+                    },
+                    onPreviewTrack = { trackId ->
+                        // TODO: Implementar preview si quieres
+                    }
+                )
+            }
+
+            if (showShortBreakMusicDialog) {
+                MusicSelectorDialog(
+                    sessionType = SessionType.SHORT_BREAK,
+                    currentTrackId = localSettings.shortBreakMusicTrackId,
+                    onDismiss = { showShortBreakMusicDialog = false },
+                    onTrackSelected = { trackId ->
+                        localSettings = localSettings.copy(shortBreakMusicTrackId = trackId)
+                    },
+                    onPreviewTrack = { trackId ->
+                        // TODO: Implementar preview
+                    }
+                )
+            }
+
+            if (showLongBreakMusicDialog) {
+                MusicSelectorDialog(
+                    sessionType = SessionType.LONG_BREAK,
+                    currentTrackId = localSettings.longBreakMusicTrackId,
+                    onDismiss = { showLongBreakMusicDialog = false },
+                    onTrackSelected = { trackId ->
+                        localSettings = localSettings.copy(longBreakMusicTrackId = trackId)
+                    },
+                    onPreviewTrack = { trackId ->
+                        // TODO: Implementar preview
+                    }
+                )
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
@@ -323,6 +408,55 @@ fun SwitchSetting(
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange
+        )
+    }
+}
+
+@Composable
+fun MusicSelectionRow(
+    label: String,
+    currentTrackId: String,
+    onClick: () -> Unit
+) {
+    val track = com.example.pomodoro.utils.MusicCatalog.getTrackById(currentTrackId)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.MusicNote,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                track?.let {
+                    Text(
+                        text = it.name,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+
+        Icon(
+            Icons.Default.ChevronRight,
+            contentDescription = "Seleccionar",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
