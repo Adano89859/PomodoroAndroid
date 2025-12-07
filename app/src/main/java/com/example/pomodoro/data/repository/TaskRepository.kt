@@ -36,6 +36,12 @@ class TaskRepository(private val taskDao: TaskDao) {
         )
     }
 
+    suspend fun addTimeToTask(task: PomodoroTask, secondsToAdd: Int) {
+        taskDao.updateTask(
+            task.copy(timeSpentInSeconds = task.timeSpentInSeconds + secondsToAdd)
+        )
+    }
+
     suspend fun deleteAllCompletedTasks() {
         taskDao.deleteAllCompletedTasks()
     }

@@ -47,7 +47,7 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
     val sessionType: StateFlow<SessionType> = _sessionType.asStateFlow()
 
     // Time remaining in seconds
-    private val _timeRemaining = MutableStateFlow(25 * 60) // 25 minutos por defecto
+    private val _timeRemaining = MutableStateFlow(25 * 60)
     val timeRemaining: StateFlow<Int> = _timeRemaining.asStateFlow()
 
     // Completed pomodoros in current cycle
@@ -64,6 +64,10 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
 
     private var timerJob: Job? = null
 
+    // NUEVO: Variables para trackear tiempo trabajado
+    private var sessionStartTime: Long = 0
+    private var accumulatedWorkTime: Int = 0 // en segundos
+
     init {
         resetTimer()
     }
@@ -72,6 +76,11 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
         if (_timerState.value == TimerState.RUNNING) return
 
         _timerState.value = TimerState.RUNNING
+
+        // NUEVO: Registrar inicio de sesión de trabajo
+        if (_sessionType.value == SessionType.WORK) {
+            sessionStartTime = System.currentTimeMillis()
+        }
 
         // Iniciar música si está habilitada
         if (_settings.value.soundEnabled) {
@@ -94,11 +103,25 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
         _timerState.value = TimerState.PAUSED
         timerJob?.cancel()
         musicPlayer.pause()
+
+        // NUEVO: Guardar tiempo trabajado al pausar (solo en sesiones de trabajo)
+        if (_sessionType.value == SessionType.WORK && sessionStartTime > 0) {
+            val workTime = ((System.currentTimeMillis() - sessionStartTime) / 1000).toInt()
+            accumulatedWorkTime += workTime
+            sessionStartTime = 0
+        }
     }
 
     fun resetTimer() {
+        // NUEVO: Guardar tiempo acumulado antes de resetear
+        if (_timerState.value == TimerState.RUNNING && _sessionType.value == SessionType.WORK && sessionStartTime > 0) {
+            val workTime = ((System.currentTimeMillis() - sessionStartTime) / 1000).toInt()
+            accumulatedWorkTime += workTime
+        }
+
         _timerState.value = TimerState.IDLE
         timerJob?.cancel()
+        sessionStartTime = 0
 
         _timeRemaining.value = when (_sessionType.value) {
             SessionType.WORK -> _settings.value.workDuration * 60
@@ -109,11 +132,27 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
 
     fun skipSession() {
         timerJob?.cancel()
+
+        // NUEVO: Guardar tiempo trabajado antes de saltar
+        if (_sessionType.value == SessionType.WORK && sessionStartTime > 0) {
+            val workTime = ((System.currentTimeMillis() - sessionStartTime) / 1000).toInt()
+            accumulatedWorkTime += workTime
+            saveAccumulatedTime()
+        }
+
         _timerState.value = TimerState.IDLE
         onTimerComplete()
     }
 
     private fun onTimerComplete() {
+        // NUEVO: Calcular y guardar tiempo trabajado si es sesión de trabajo
+        if (_sessionType.value == SessionType.WORK && sessionStartTime > 0) {
+            val workTime = ((System.currentTimeMillis() - sessionStartTime) / 1000).toInt()
+            accumulatedWorkTime += workTime
+            saveAccumulatedTime()
+            sessionStartTime = 0
+        }
+
         // Mostrar notificación
         notificationHelper.showSessionCompleteNotification(_sessionType.value)
 
@@ -168,6 +207,22 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    // NUEVO: Guardar tiempo acumulado en la tarea
+    private fun saveAccumulatedTime() {
+        _currentTask.value?.let { task ->
+            if (accumulatedWorkTime > 0) {
+                viewModelScope.launch {
+                    repository.addTimeToTask(task, accumulatedWorkTime)
+                    // Recargar la tarea para mostrar el tiempo actualizado
+                    _currentTask.value = task.copy(
+                        timeSpentInSeconds = task.timeSpentInSeconds + accumulatedWorkTime
+                    )
+                    accumulatedWorkTime = 0
+                }
+            }
+        }
+    }
+
     private fun shouldAutoStart(): Boolean {
         return when (_sessionType.value) {
             SessionType.WORK -> _settings.value.autoStartPomodoros
@@ -183,7 +238,13 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun setCurrentTask(task: PomodoroTask?) {
+        // Guardar tiempo acumulado de la tarea anterior
+        if (_currentTask.value != null && accumulatedWorkTime > 0) {
+            saveAccumulatedTime()
+        }
+
         _currentTask.value = task
+        accumulatedWorkTime = 0
     }
 
     // Task management functions
@@ -235,9 +296,25 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
         return String.format("%02d:%02d", minutes, secs)
     }
 
+    // NUEVO: Formatear tiempo trabajado (puede ser más de 60 minutos)
+    fun formatWorkTime(seconds: Int): String {
+        val hours = seconds / 3600
+        val minutes = (seconds % 3600) / 60
+        return if (hours > 0) {
+            "${hours}h ${minutes}m"
+        } else {
+            "${minutes}m"
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         timerJob?.cancel()
         musicPlayer.stop()
+
+        // Guardar tiempo acumulado antes de destruir el ViewModel
+        if (accumulatedWorkTime > 0) {
+            saveAccumulatedTime()
+        }
     }
 }
