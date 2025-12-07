@@ -1,4 +1,4 @@
-package com.tuapp.pomodoro.data.model
+package com.example.pomodoro.data.model
 
 data class PomodoroSettings(
     val workDuration: Int = 25, // minutos
