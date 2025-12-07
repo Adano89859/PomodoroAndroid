@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.pomodoro.data.model.AppTheme
 import com.example.pomodoro.data.model.PomodoroSettings
 import com.example.pomodoro.data.model.SessionType
 import com.example.pomodoro.ui.timer.PomodoroViewModel
@@ -58,6 +59,70 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Sección de Apariencia (PRIMERO para que sea visible)
+            Text(
+                text = "Apariencia",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            var showThemeDialog by remember { mutableStateOf(false) }
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showThemeDialog = true }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = localSettings.appTheme.emoji,
+                            style = MaterialTheme.typography.headlineMedium,
+                            modifier = Modifier.padding(end = 12.dp)
+                        )
+                        Column {
+                            Text(
+                                text = "Tema de la aplicación",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = localSettings.appTheme.displayName,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        contentDescription = "Cambiar tema",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // Diálogo de selección de tema
+            if (showThemeDialog) {
+                ThemeSelectorDialog(
+                    currentTheme = localSettings.appTheme,
+                    onDismiss = { showThemeDialog = false },
+                    onThemeSelected = { theme ->
+                        localSettings = localSettings.copy(appTheme = theme)
+                        // Aplicar inmediatamente para previsualizar
+                        viewModel.updateSettings(localSettings)
+                        showThemeDialog = false
+                    }
+                )
+            }
+
             // Sección de duraciones
             Text(
                 text = "Duraciones",
@@ -266,7 +331,7 @@ fun SettingsScreen(
                 }
             }
 
-            // Diálogos de selección
+            // Diálogos de selección de música
             if (showWorkMusicDialog) {
                 MusicSelectorDialog(
                     sessionType = SessionType.WORK,
