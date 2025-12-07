@@ -6,6 +6,7 @@ import com.example.pomodoro.data.model.ProgressNote
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.encodeToString
 import kotlin.collections.emptyList
+import kotlinx.serialization.encodeToString
 
 class TaskRepository(private val taskDao: TaskDao) {
 
@@ -49,8 +50,6 @@ class TaskRepository(private val taskDao: TaskDao) {
         taskDao.deleteAllCompletedTasks()
     }
 
-    // Agregar al final de TaskRepository.kt, antes de la última llave
-
     suspend fun addProgressNote(task: PomodoroTask, note: String, sessionDuration: Int) {
         val progressNote = ProgressNote(
             text = note,
@@ -59,15 +58,7 @@ class TaskRepository(private val taskDao: TaskDao) {
         )
 
         // Deserializar notas existentes
-        val existingNotes = if (task.progressNotes.isNotEmpty()) {
-            try {
-                kotlinx.serialization.json.Json.decodeFromString<List<ProgressNote>>(task.progressNotes)
-            } catch (e: Exception) {
-                emptyList()
-            }
-        } else {
-            emptyList()
-        }
+        val existingNotes = com.example.pomodoro.utils.ProgressNoteHelper.parseNotes(task.progressNotes)
 
         // Agregar nueva nota
         val updatedNotes = existingNotes + progressNote
