@@ -8,7 +8,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.pomodoro.data.model.PomodoroTask
 
-@Database(entities = [PomodoroTask::class], version = 2, exportSchema = false) // Cambiado a version 2
+@Database(entities = [PomodoroTask::class], version = 3, exportSchema = false) // Version 3
 abstract class AppDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao
 
@@ -19,8 +19,14 @@ abstract class AppDatabase : RoomDatabase() {
         // Migración de versión 1 a 2
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                // Agregar la nueva columna timeSpentInSeconds con valor por defecto 0
                 database.execSQL("ALTER TABLE tasks ADD COLUMN timeSpentInSeconds INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        // NUEVA Migración de versión 2 a 3
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE tasks ADD COLUMN progressNotes TEXT NOT NULL DEFAULT ''")
             }
         }
 
@@ -31,7 +37,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "pomodoro_database"
                 )
-                    .addMigrations(MIGRATION_1_2) // Agregar la migración
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3) // Agregar ambas migraciones
                     .build()
                 INSTANCE = instance
                 instance

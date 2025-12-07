@@ -68,6 +68,19 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
     private var sessionStartTime: Long = 0
     private var accumulatedWorkTime: Int = 0 // en segundos
 
+    // NUEVO: Estados para diálogos
+    private val _showProgressDialog = MutableStateFlow(false)
+    val showProgressDialog: StateFlow<Boolean> = _showProgressDialog.asStateFlow()
+
+    private val _showCelebrationDialog = MutableStateFlow(false)
+    val showCelebrationDialog: StateFlow<Boolean> = _showCelebrationDialog.asStateFlow()
+
+    private val _celebrationSessionType = MutableStateFlow<SessionType?>(null)
+    val celebrationSessionType: StateFlow<SessionType?> = _celebrationSessionType.asStateFlow()
+
+    // Bonus de tiempo acumulado
+    private var bonusTimeInSeconds = 0
+
     init {
         resetTimer()
     }
@@ -118,24 +131,6 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun resetTimer() {
-        // NUEVO: Guardar tiempo acumulado antes de resetear
-        if (_timerState.value == TimerState.RUNNING && _sessionType.value == SessionType.WORK && sessionStartTime > 0) {
-            val workTime = ((System.currentTimeMillis() - sessionStartTime) / 1000).toInt()
-            accumulatedWorkTime += workTime
-        }
-
-        _timerState.value = TimerState.IDLE
-        timerJob?.cancel()
-        sessionStartTime = 0
-
-        _timeRemaining.value = when (_sessionType.value) {
-            SessionType.WORK -> _settings.value.workDuration * 60
-            SessionType.SHORT_BREAK -> _settings.value.shortBreakDuration * 60
-            SessionType.LONG_BREAK -> _settings.value.longBreakDuration * 60
-        }
-    }
-
     fun skipSession() {
         timerJob?.cancel()
 
@@ -151,12 +146,18 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun onTimerComplete() {
-        // NUEVO: Calcular y guardar tiempo trabajado si es sesión de trabajo
+        // Calcular y guardar tiempo trabajado si es sesión de trabajo
         if (_sessionType.value == SessionType.WORK && sessionStartTime > 0) {
             val workTime = ((System.currentTimeMillis() - sessionStartTime) / 1000).toInt()
             accumulatedWorkTime += workTime
             saveAccumulatedTime()
             sessionStartTime = 0
+
+            // NUEVO: Mostrar diálogo de progreso si hay tarea activa
+            if (_currentTask.value != null) {
+                _showProgressDialog.value = true
+                return // Pausar aquí hasta que se complete el diálogo
+            }
         }
 
         // Mostrar notificación
@@ -180,19 +181,20 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
             }
         }
 
+        // NUEVO: Mostrar diálogo de celebración
+        _celebrationSessionType.value = _sessionType.value
+        _showCelebrationDialog.value = true
+
         when (_sessionType.value) {
             SessionType.WORK -> {
-                // Incrementar pomodoros completados
                 _completedPomodoros.value++
 
-                // Incrementar pomodoro de la tarea actual
                 _currentTask.value?.let { task ->
                     viewModelScope.launch {
                         repository.incrementPomodoro(task)
                     }
                 }
 
-                // Decidir siguiente sesión
                 if (_completedPomodoros.value >= _settings.value.pomodorosUntilLongBreak) {
                     _sessionType.value = SessionType.LONG_BREAK
                     _completedPomodoros.value = 0
@@ -202,12 +204,13 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
             }
             SessionType.SHORT_BREAK, SessionType.LONG_BREAK -> {
                 _sessionType.value = SessionType.WORK
+                // Resetear bonus de tiempo
+                bonusTimeInSeconds = 0
             }
         }
 
         resetTimer()
 
-        // Auto-start si está configurado
         if (shouldAutoStart()) {
             startTimer()
         }
@@ -311,6 +314,112 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
         } else {
             "${minutes}m"
         }
+    }
+
+    // NUEVO: Guardar nota de progreso
+    fun saveProgressNote(noteText: String) {
+        _showProgressDialog.value = false
+
+        _currentTask.value?.let { task ->
+            if (noteText.isNotBlank()) {
+                // Calcular bonus de tiempo
+                val bonus = calculateBonusTime(noteText.length)
+                bonusTimeInSeconds = bonus
+
+                viewModelScope.launch {
+                    repository.addProgressNote(task, noteText, accumulatedWorkTime)
+                }
+            }
+        }
+
+        // Continuar con el flujo normal
+        continueAfterProgressNote()
+    }
+
+    private fun calculateBonusTime(textLength: Int): Int {
+        return when {
+            textLength < 20 -> 0
+            textLength < 50 -> 30
+            textLength < 100 -> 60
+            textLength < 200 -> 90
+            else -> 120
+        }
+    }
+
+    private fun continueAfterProgressNote() {
+        // Mostrar notificación
+        notificationHelper.showSessionCompleteNotification(_sessionType.value)
+
+        // Vibrar si está habilitado
+        if (_settings.value.vibrationEnabled) {
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager = getApplication<Application>().getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                vibratorManager.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                getApplication<Application>().getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(500)
+            }
+        }
+
+        // Mostrar celebración
+        _celebrationSessionType.value = _sessionType.value
+        _showCelebrationDialog.value = true
+
+        // Cambiar de sesión
+        _completedPomodoros.value++
+
+        _currentTask.value?.let { task ->
+            viewModelScope.launch {
+                repository.incrementPomodoro(task)
+            }
+        }
+
+        if (_completedPomodoros.value >= _settings.value.pomodorosUntilLongBreak) {
+            _sessionType.value = SessionType.LONG_BREAK
+            _completedPomodoros.value = 0
+        } else {
+            _sessionType.value = SessionType.SHORT_BREAK
+        }
+
+        resetTimer()
+
+        if (shouldAutoStart()) {
+            startTimer()
+        }
+    }
+
+    fun dismissCelebration() {
+        _showCelebrationDialog.value = false
+        _celebrationSessionType.value = null
+    }
+
+    // NUEVO: Override de resetTimer para aplicar bonus
+    fun resetTimer() {
+        _timerState.value = TimerState.IDLE
+        timerJob?.cancel()
+        sessionStartTime = 0
+
+        val baseDuration = when (_sessionType.value) {
+            SessionType.WORK -> _settings.value.workDuration * 60
+            SessionType.SHORT_BREAK -> _settings.value.shortBreakDuration * 60
+            SessionType.LONG_BREAK -> _settings.value.longBreakDuration * 60
+        }
+
+        // Aplicar bonus si es descanso
+        val finalDuration = if (_sessionType.value != SessionType.WORK) {
+            baseDuration + bonusTimeInSeconds
+        } else {
+            baseDuration
+        }
+
+        _timeRemaining.value = finalDuration
     }
 
     override fun onCleared() {

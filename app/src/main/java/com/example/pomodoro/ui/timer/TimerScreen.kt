@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pomodoro.data.model.SessionType
 import com.example.pomodoro.data.model.TimerState
+import com.example.pomodoro.ui.dialogs.ProgressNoteDialog
+import com.example.pomodoro.ui.dialogs.CelebrationDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -208,6 +210,25 @@ fun TimerScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+
+    // NUEVO: Diálogos de progreso y celebración
+    val showProgressDialog by viewModel.showProgressDialog.collectAsState()
+    val showCelebrationDialog by viewModel.showCelebrationDialog.collectAsState()
+    val celebrationSessionType by viewModel.celebrationSessionType.collectAsState()
+
+    if (showProgressDialog) {
+        ProgressNoteDialog(
+            onDismiss = { viewModel.saveProgressNote("") },
+            onSave = { note -> viewModel.saveProgressNote(note) }
+        )
+    }
+
+    if (showCelebrationDialog && celebrationSessionType != null) {
+        CelebrationDialog(
+            sessionType = celebrationSessionType!!,
+            onDismiss = { viewModel.dismissCelebration() }
+        )
     }
 }
 
@@ -429,9 +450,10 @@ fun getSessionColor(sessionType: SessionType): Color {
     return when (sessionType) {
         SessionType.WORK -> Color(0xFFE53935) // Rojo
         SessionType.SHORT_BREAK -> Color(0xFF43A047) // Verde
-        SessionType.LONG_BREAK ->Color(0xFF1E88E5) // Azul
+        SessionType.LONG_BREAK -> Color(0xFF1E88E5) // Azul
     }
 }
+
 fun getSessionLabel(sessionType: SessionType): String {
     return when (sessionType) {
         SessionType.WORK -> "Tiempo de concentración"

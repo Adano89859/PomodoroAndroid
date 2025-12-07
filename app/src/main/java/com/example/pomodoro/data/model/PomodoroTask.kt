@@ -13,5 +13,6 @@ data class PomodoroTask(
     val pomodorosCompleted: Int = 0,
     val timeSpentInSeconds: Int = 0,
     val createdAt: Long = System.currentTimeMillis(),
-    val completedAt: Long? = null
+    val completedAt: Long? = null,
+    val progressNotes: String = ""
 )
