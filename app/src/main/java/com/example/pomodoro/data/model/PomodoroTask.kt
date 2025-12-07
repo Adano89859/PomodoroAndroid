@@ -1,4 +1,4 @@
-package com.tuapp.pomodoro.data.model
+package com.example.pomodoro.data.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey

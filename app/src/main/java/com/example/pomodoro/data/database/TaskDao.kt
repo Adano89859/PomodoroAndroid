@@ -1,7 +1,7 @@
-package com.tuapp.pomodoro.data.database
+package com.example.pomodoro.data.database
 
 import androidx.room.*
-import com.tuapp.pomodoro.data.model.PomodoroTask
+import com.example.pomodoro.data.model.PomodoroTask
 import kotlinx.coroutines.flow.Flow
 
 @Dao
