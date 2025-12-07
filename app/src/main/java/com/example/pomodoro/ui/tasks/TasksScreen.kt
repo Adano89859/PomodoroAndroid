@@ -249,11 +249,20 @@ fun TaskCard(
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "${task.pomodorosCompleted} pomodoros",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        Column {
+                            Text(
+                                text = "${task.pomodorosCompleted} pomodoros",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            if (task.timeSpentInSeconds > 0) {
+                                Text(
+                                    text = "${task.timeSpentInSeconds / 60}m trabajados",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
                     }
                 }
             }

@@ -15,6 +15,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pomodoro.data.model.SessionType
@@ -74,7 +76,49 @@ fun TimerScreen(
                 totalPomodoros = settings.pomodorosUntilLongBreak
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // NUEVO: Mostrar tarea actual de forma prominente
+            currentTask?.let { task ->
+                CurrentTaskCard(
+                    task = task,
+                    viewModel = viewModel
+                )
+            } ?: run {
+                // Mensaje cuando no hay tarea seleccionada
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            Icons.Default.Assignment,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Sin tarea seleccionada",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        TextButton(onClick = onNavigateToTasks) {
+                            Text("Seleccionar tarea")
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Timer circular
             Box(
@@ -98,55 +142,14 @@ fun TimerScreen(
 
                     Text(
                         text = getSessionLabel(sessionType),
-                        fontSize = 18.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Tarea actual
-            currentTask?.let { task ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Timer,
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = task.title,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = "${task.pomodorosCompleted} pomodoros completados",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
-                            )
-                        }
-                    }
-                }
-            } ?: run {
-                TextButton(onClick = onNavigateToTasks) {
-                    Icon(Icons.Default.Add, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Seleccionar tarea")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Controles del timer
             Row(
@@ -208,6 +211,132 @@ fun TimerScreen(
     }
 }
 
+// NUEVO: Card destacado para la tarea actual
+@Composable
+fun CurrentTaskCard(
+    task: com.example.pomodoro.data.model.PomodoroTask,
+    viewModel: PomodoroViewModel
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            // Título de la tarea
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    Icons.Default.Work,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = task.title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            // Descripción (si existe)
+            if (task.description.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = task.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Estadísticas de la tarea
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                // Pomodoros completados
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "${task.pomodorosCompleted}",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                    Text(
+                        text = "Pomodoros",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                    )
+                }
+
+                // Divisor vertical
+                Divider(
+                    modifier = Modifier
+                        .height(40.dp)
+                        .width(1.dp),
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f)
+                )
+
+                // Tiempo trabajado
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.AccessTime,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = viewModel.formatWorkTime(task.timeSpentInSeconds),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                    Text(
+                        text = "Tiempo trabajado",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun CircularProgressIndicator(
     progress: Float,
@@ -219,7 +348,6 @@ fun CircularProgressIndicator(
     Canvas(modifier = modifier.fillMaxSize()) {
         val strokeWidth = 12.dp.toPx()
         val diameter = size.minDimension - strokeWidth
-        val radius = diameter / 2f
         val topLeft = Offset(
             x = (size.width - diameter) / 2f,
             y = (size.height - diameter) / 2f
@@ -264,7 +392,7 @@ fun SessionIndicator(
                 SessionType.SHORT_BREAK -> "Descanso Corto"
                 SessionType.LONG_BREAK -> "Descanso Largo"
             },
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
 
@@ -276,33 +404,20 @@ fun SessionIndicator(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 repeat(totalPomodoros) { index ->
-                    Box(
-                        modifier = Modifier
-                            .size(12.dp)
-                            .then(
-                                if (index < completedPomodoros) {
-                                    Modifier
-                                } else {
-                                    Modifier
-                                }
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = if (index < completedPomodoros) {
-                                Icons.Default.CheckCircle
-                            } else {
-                                Icons.Default.RadioButtonUnchecked
-                            },
-                            contentDescription = null,
-                            tint = if (index < completedPomodoros) {
-                                getSessionColor(SessionType.WORK)
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                            },
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
+                    Icon(
+                        imageVector = if (index < completedPomodoros) {
+                            Icons.Default.CheckCircle
+                        } else {
+                            Icons.Default.RadioButtonUnchecked
+                        },
+                        contentDescription = null,
+                        tint = if (index < completedPomodoros) {
+                            getSessionColor(SessionType.WORK)
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                        },
+                        modifier = Modifier.size(16.dp)
+                    )
                 }
             }
         }
@@ -314,10 +429,9 @@ fun getSessionColor(sessionType: SessionType): Color {
     return when (sessionType) {
         SessionType.WORK -> Color(0xFFE53935) // Rojo
         SessionType.SHORT_BREAK -> Color(0xFF43A047) // Verde
-        SessionType.LONG_BREAK -> Color(0xFF1E88E5) // Azul
+        SessionType.LONG_BREAK ->Color(0xFF1E88E5) // Azul
     }
 }
-
 fun getSessionLabel(sessionType: SessionType): String {
     return when (sessionType) {
         SessionType.WORK -> "Tiempo de concentración"

@@ -11,6 +11,7 @@ data class PomodoroTask(
     val description: String = "",
     val isCompleted: Boolean = false,
     val pomodorosCompleted: Int = 0,
+    val timeSpentInSeconds: Int = 0,
     val createdAt: Long = System.currentTimeMillis(),
     val completedAt: Long? = null
 )
