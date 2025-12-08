@@ -146,19 +146,22 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun onTimerComplete() {
-        // Calcular y guardar tiempo trabajado si es sesión de trabajo
+        // Calcular tiempo trabajado si es sesión de trabajo
         if (_sessionType.value == SessionType.WORK && sessionStartTime > 0) {
             val workTime = ((System.currentTimeMillis() - sessionStartTime) / 1000).toInt()
             accumulatedWorkTime += workTime
-            saveAccumulatedTime()
+            // NO llamar a saveAccumulatedTime() aquí todavía
             sessionStartTime = 0
 
-            // NUEVO: Mostrar diálogo de progreso si hay tarea activa
+            // Mostrar diálogo de progreso si hay tarea activa
             if (_currentTask.value != null) {
                 _showProgressDialog.value = true
                 return // Pausar aquí hasta que se complete el diálogo
             }
         }
+
+        // Si no hay tarea, guardar tiempo y continuar
+        saveAccumulatedTime()
 
         // Mostrar notificación
         notificationHelper.showSessionCompleteNotification(_sessionType.value)
@@ -181,7 +184,7 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
             }
         }
 
-        // NUEVO: Mostrar diálogo de celebración
+        // Mostrar diálogo de celebración
         _celebrationSessionType.value = _sessionType.value
         _showCelebrationDialog.value = true
 
@@ -204,7 +207,6 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
             }
             SessionType.SHORT_BREAK, SessionType.LONG_BREAK -> {
                 _sessionType.value = SessionType.WORK
-                // Resetear bonus de tiempo
                 bonusTimeInSeconds = 0
             }
         }
@@ -216,7 +218,7 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    // NUEVO: Guardar tiempo acumulado en la tarea
+    // NUEVO: Guardar tiempo acumulado en la tarea SIN resetear
     private fun saveAccumulatedTime() {
         _currentTask.value?.let { task ->
             if (accumulatedWorkTime > 0) {
@@ -226,7 +228,7 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
                     _currentTask.value = task.copy(
                         timeSpentInSeconds = task.timeSpentInSeconds + accumulatedWorkTime
                     )
-                    accumulatedWorkTime = 0
+                    // NO resetear aquí, lo haremos después de guardar la nota
                 }
             }
         }
@@ -316,23 +318,28 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    // NUEVO: Guardar nota de progreso
     fun saveProgressNote(noteText: String) {
         _showProgressDialog.value = false
 
+        val timeToSave = accumulatedWorkTime
+
         _currentTask.value?.let { task ->
             if (noteText.isNotBlank()) {
-                // Calcular bonus de tiempo
                 val bonus = calculateBonusTime(noteText.length)
                 bonusTimeInSeconds = bonus
 
                 viewModelScope.launch {
-                    repository.addProgressNote(task, noteText, accumulatedWorkTime)
+                    // Guardar la nota
+                    repository.addProgressNote(task, noteText, timeToSave)
+
+                    // NUEVO: Recargar la tarea desde la base de datos
+                    val updatedTask = repository.getTaskById(task.id)
+                    _currentTask.value = updatedTask
                 }
             }
         }
 
-        // Continuar con el flujo normal
+        accumulatedWorkTime = 0
         continueAfterProgressNote()
     }
 
