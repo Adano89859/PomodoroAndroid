@@ -15,6 +15,9 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.example.pomodoro.data.model.PomodoroTask
 import com.example.pomodoro.ui.timer.PomodoroViewModel
+import com.example.pomodoro.ui.tasks.ProgressNotesDialog
+import androidx.compose.material.icons.filled.Notes
+import androidx.compose.material.icons.filled.Description
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -185,6 +188,7 @@ fun TaskCard(
     onDeleteClick: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    var showNotesDialog by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier
@@ -201,63 +205,67 @@ fun TaskCard(
             defaultElevation = if (isSelected) 4.dp else 1.dp
         )
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(16.dp)
         ) {
             Row(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (isSelected) {
-                    Icon(
-                        Icons.Default.CheckCircle,
-                        contentDescription = "Tarea seleccionada",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                }
-
-                Column {
-                    Text(
-                        text = task.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-
-                    if (task.description.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = task.description,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (isSelected) {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = "Tarea seleccionada",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
                         )
+                        Spacer(modifier = Modifier.width(12.dp))
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Timer,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                    Column {
+                        Text(
+                            text = task.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Column {
+
+                        if (task.description.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = task.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Timer,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = "${task.pomodorosCompleted} pomodoros",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.primary
                             )
+
                             if (task.timeSpentInSeconds > 0) {
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "${task.timeSpentInSeconds / 60}m trabajados",
+                                    text = "· ${task.timeSpentInSeconds / 60}m trabajados",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
                                 )
@@ -265,40 +273,89 @@ fun TaskCard(
                         }
                     }
                 }
+
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Default.MoreVert, "Opciones")
+                    }
+
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Ver progreso") },
+                            onClick = {
+                                showNotesDialog = true
+                                showMenu = false
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.Notes, contentDescription = null)
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Completar") },
+                            onClick = {
+                                onCompleteClick()
+                                showMenu = false
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.Done, contentDescription = null)
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Eliminar") },
+                            onClick = {
+                                onDeleteClick()
+                                showMenu = false
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.Delete, contentDescription = null)
+                            }
+                        )
+                    }
+                }
             }
 
-            Box {
-                IconButton(onClick = { showMenu = true }) {
-                    Icon(Icons.Default.MoreVert, "Opciones")
-                }
-
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
+            // NUEVO: Indicador de notas de progreso
+            val notesCount = com.example.pomodoro.utils.ProgressNoteHelper.parseNotes(task.progressNotes).size
+            if (notesCount > 0) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showNotesDialog = true },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    DropdownMenuItem(
-                        text = { Text("Completar") },
-                        onClick = {
-                            onCompleteClick()
-                            showMenu = false
-                        },
-                        leadingIcon = {
-                            Icon(Icons.Default.Done, contentDescription = null)
-                        }
+                    Icon(
+                        Icons.Default.Description,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.secondary
                     )
-                    DropdownMenuItem(
-                        text = { Text("Eliminar") },
-                        onClick = {
-                            onDeleteClick()
-                            showMenu = false
-                        },
-                        leadingIcon = {
-                            Icon(Icons.Default.Delete, contentDescription = null)
-                        }
+                    Text(
+                        text = "$notesCount ${if (notesCount == 1) "nota" else "notas"} de progreso",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.secondary
                     )
                 }
             }
         }
+    }
+
+    // NUEVO: Diálogo de notas
+    if (showNotesDialog) {
+        ProgressNotesDialog(
+            task = task,
+            onDismiss = { showNotesDialog = false }
+        )
     }
 }
 

@@ -12,7 +12,7 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE isCompleted = 1 ORDER BY completedAt DESC")
     fun getCompletedTasks(): Flow<List<PomodoroTask>>
 
-    @Query("SELECT * FROM tasks WHERE id = :taskId")
+    @Query("SELECT * FROM tasks WHERE id = :taskId LIMIT 1")
     suspend fun getTaskById(taskId: Int): PomodoroTask?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
