@@ -31,7 +31,8 @@ fun TimerScreen(
     viewModel: PomodoroViewModel,
     onNavigateToTasks: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToShop: () -> Unit  // ← NUEVO
+    onNavigateToShop: () -> Unit,
+    onNavigateToRooms: () -> Unit  // ← NUEVO
 ) {
     val timerState by viewModel.timerState.collectAsState()
     val timeRemaining by viewModel.timeRemaining.collectAsState()
@@ -75,11 +76,14 @@ fun TimerScreen(
                         )
                     }
 
-                    // ← NUEVO: Icono de tienda
+                    // ← NUEVO: Icono de habitaciones
+                    IconButton(onClick = onNavigateToRooms) {
+                        Icon(Icons.Default.Home, "Habitaciones")
+                    }
+
                     IconButton(onClick = onNavigateToShop) {
                         Icon(Icons.Default.ShoppingCart, "Tienda")
                     }
-
                     IconButton(onClick = onNavigateToTasks) {
                         Icon(Icons.Default.CheckCircle, "Tareas")
                     }

@@ -9,7 +9,8 @@ import com.example.pomodoro.ui.tasks.TasksScreen
 import com.example.pomodoro.ui.timer.PomodoroViewModel
 import com.example.pomodoro.ui.timer.TimerScreen
 import com.example.pomodoro.ui.shop.ShopScreen
-import com.example.pomodoro.ui.stats.StatsScreen  // ← NUEVO
+import com.example.pomodoro.ui.stats.StatsScreen
+import com.example.pomodoro.ui.rooms.RoomsScreen
 
 @Composable
 fun NavGraph(
@@ -31,6 +32,9 @@ fun NavGraph(
                 },
                 onNavigateToShop = {
                     navController.navigate(Screen.Shop.route)
+                },
+                onNavigateToRooms = {  // ← NUEVO
+                    navController.navigate(Screen.Rooms.route)
                 }
             )
         }
@@ -71,6 +75,14 @@ fun NavGraph(
         // ← NUEVO: Ruta de Estadísticas
         composable(Screen.Stats.route) {
             StatsScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(Screen.Rooms.route) {
+            RoomsScreen(
                 onNavigateBack = {
                     navController.popBackStack()
                 }
