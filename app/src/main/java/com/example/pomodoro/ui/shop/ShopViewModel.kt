@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.pomodoro.data.database.AppDatabase
 import com.example.pomodoro.data.repository.MusicRepository
 import com.example.pomodoro.data.repository.PurchaseResult
+import com.example.pomodoro.utils.MusicPlayer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,6 +15,7 @@ import kotlinx.coroutines.launch
 class ShopViewModel(application: Application) : AndroidViewModel(application) {
 
     private val musicRepository: MusicRepository
+    private val musicPlayer = MusicPlayer(application)  // ← NUEVO
 
     init {
         val musicDao = AppDatabase.getDatabase(application).musicDao()
@@ -25,6 +27,10 @@ class ShopViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _purchaseState = MutableStateFlow<PurchaseState>(PurchaseState.Idle)
     val purchaseState: StateFlow<PurchaseState> = _purchaseState.asStateFlow()
+
+    // ← NUEVO: Estado de preview
+    private val _previewingTrackId = MutableStateFlow<Int?>(null)
+    val previewingTrackId: StateFlow<Int?> = _previewingTrackId.asStateFlow()
 
     fun purchaseTrack(trackId: Int) {
         viewModelScope.launch {
@@ -43,6 +49,31 @@ class ShopViewModel(application: Application) : AndroidViewModel(application) {
 
     fun dismissPurchaseState() {
         _purchaseState.value = PurchaseState.Idle
+    }
+
+    // ← NUEVO: Reproducir preview
+    fun playPreview(trackId: Int) {
+        if (_previewingTrackId.value == trackId) {
+            // Si ya está reproduciéndose, detener
+            stopPreview()
+        } else {
+            // Reproducir preview
+            _previewingTrackId.value = trackId
+            musicPlayer.playPreview(trackId) {
+                _previewingTrackId.value = null
+            }
+        }
+    }
+
+    // ← NUEVO: Detener preview
+    fun stopPreview() {
+        musicPlayer.stopPreview()
+        _previewingTrackId.value = null
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        musicPlayer.stop()
     }
 }
 

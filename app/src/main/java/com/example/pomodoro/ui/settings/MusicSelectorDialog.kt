@@ -26,10 +26,11 @@ fun MusicSelectorDialog(
     onDismiss: () -> Unit,
     onTrackSelected: (Int) -> Unit,
     onPreviewTrack: (Int) -> Unit,
-    onNavigateToShop: (() -> Unit)? = null  // ← NUEVO: navegación a tienda
+    onNavigateToShop: (() -> Unit)? = null
 ) {
     val shopViewModel: ShopViewModel = viewModel()
     val unlockedMusicIds by shopViewModel.unlockedMusicIds.collectAsState(initial = emptyList())
+    val previewingTrackId by shopViewModel.previewingTrackId.collectAsState()  // ← NUEVO
 
     val allTracks = MusicCatalog.getTracksByType(sessionType)
     val unlockedTracks = allTracks.filter { it.id in unlockedMusicIds }
@@ -50,7 +51,6 @@ fun MusicSelectorDialog(
         },
         text = {
             if (unlockedTracks.isEmpty()) {
-                // Mensaje si no hay canciones desbloqueadas
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -90,7 +90,6 @@ fun MusicSelectorDialog(
                     }
                 }
             } else {
-                // Lista de canciones desbloqueadas
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -101,15 +100,17 @@ fun MusicSelectorDialog(
                         MusicTrackItem(
                             track = track,
                             isSelected = track.id == currentTrackId,
+                            isPreviewing = track.id == previewingTrackId,  // ← NUEVO
                             onSelect = {
                                 onTrackSelected(track.id)
                                 onDismiss()
                             },
-                            onPreview = { onPreviewTrack(track.id) }
+                            onPreview = {
+                                shopViewModel.playPreview(track.id)  // ← ACTUALIZADO
+                            }
                         )
                     }
 
-                    // Botón para ver más en la tienda
                     item {
                         onNavigateToShop?.let { navigate ->
                             Card(
@@ -159,6 +160,7 @@ fun MusicSelectorDialog(
 fun MusicTrackItem(
     track: MusicTrack,
     isSelected: Boolean,
+    isPreviewing: Boolean,  // ← NUEVO
     onSelect: () -> Unit,
     onPreview: () -> Unit
 ) {
@@ -167,10 +169,10 @@ fun MusicTrackItem(
             .fillMaxWidth()
             .clickable(onClick = onSelect),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surface
+            containerColor = when {
+                isPreviewing -> MaterialTheme.colorScheme.tertiaryContainer  // ← NUEVO
+                isSelected -> MaterialTheme.colorScheme.primaryContainer
+                else -> MaterialTheme.colorScheme.surface
             }
         ),
         elevation = CardDefaults.cardElevation(
@@ -219,9 +221,9 @@ fun MusicTrackItem(
 
             IconButton(onClick = onPreview) {
                 Icon(
-                    Icons.Default.PlayArrow,
-                    contentDescription = "Vista previa",
-                    tint = MaterialTheme.colorScheme.primary
+                    if (isPreviewing) Icons.Default.Stop else Icons.Default.PlayArrow,  // ← NUEVO
+                    contentDescription = if (isPreviewing) "Detener" else "Vista previa",
+                    tint = if (isPreviewing) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
                 )
             }
         }

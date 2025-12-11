@@ -27,6 +27,7 @@ fun ShopScreen(
     val userCoins by viewModel.userCoins.collectAsState()
     val unlockedMusicIds by shopViewModel.unlockedMusicIds.collectAsState(initial = emptyList())
     val purchaseState by shopViewModel.purchaseState.collectAsState()
+    val previewingTrackId by shopViewModel.previewingTrackId.collectAsState()  // ← NUEVO
 
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("🎯 Trabajo", "☁️ Descanso Corto", "😌 Descanso Largo")
@@ -100,11 +101,12 @@ fun ShopScreen(
                         track = track,
                         userCoins = userCoins,
                         isUnlocked = track.id in unlockedMusicIds,
+                        isPreviewing = track.id == previewingTrackId,  // ← NUEVO
                         onPurchase = {
                             shopViewModel.purchaseTrack(track.id)
                         },
                         onPreview = {
-                            // TODO: Implementar preview más adelante
+                            shopViewModel.playPreview(track.id)  // ← ACTUALIZADO
                         }
                     )
                 }
@@ -161,12 +163,20 @@ fun MusicTrackShopItem(
     track: MusicTrack,
     userCoins: Int,
     isUnlocked: Boolean,
+    isPreviewing: Boolean,  // ← NUEVO
     onPurchase: () -> Unit,
     onPreview: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isPreviewing) {  // ← NUEVO
+                MaterialTheme.colorScheme.tertiaryContainer
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
+        )
     ) {
         Row(
             modifier = Modifier
@@ -196,14 +206,24 @@ fun MusicTrackShopItem(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+
+                    // ← NUEVO: Indicador de preview
+                    if (isPreviewing) {
+                        Text(
+                            text = "Reproduciendo preview...",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
                 }
             }
 
+            // Botón de preview con icono dinámico
             IconButton(onClick = onPreview) {
                 Icon(
-                    Icons.Default.PlayArrow,
-                    contentDescription = "Preview",
-                    tint = MaterialTheme.colorScheme.primary
+                    if (isPreviewing) Icons.Default.Stop else Icons.Default.PlayArrow,  // ← NUEVO
+                    contentDescription = if (isPreviewing) "Detener" else "Preview",
+                    tint = if (isPreviewing) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
                 )
             }
 
