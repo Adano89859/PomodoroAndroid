@@ -12,6 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.pomodoro.ui.stats.components.BarChart
+import com.example.pomodoro.data.model.Achievement
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -25,7 +27,10 @@ fun StatsScreen(
     val currentStreak by statsViewModel.currentStreak.collectAsState()
     val last7Days by statsViewModel.last7Days.collectAsState()
     val unlockedMusicCount by statsViewModel.unlockedMusicCount.collectAsState()
-    val roomsStats by statsViewModel.roomsStats.collectAsState()  // ← NUEVO
+    val roomsStats by statsViewModel.roomsStats.collectAsState()
+    val unlockedAchievements by statsViewModel.unlockedAchievements.collectAsState()  // ← NUEVO
+    val weeklyComparison by statsViewModel.weeklyComparison.collectAsState()  // ← NUEVO
+    val bestDay by statsViewModel.bestDay.collectAsState()  // ← NUEVO
 
     Scaffold(
         topBar = {
@@ -69,7 +74,7 @@ fun StatsScreen(
                 )
             }
 
-            // ← NUEVO: Sección de habitaciones
+            // Sección de habitaciones
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
@@ -181,6 +186,201 @@ fun StatsScreen(
                             }
                         }
                     }
+                }
+            }
+
+            // ← NUEVO: Gráfico de últimos 7 días
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Actividad Reciente",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            Card {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = "Pomodoros por día",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    BarChart(
+                        data = last7Days,
+                        barColor = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            // ← NUEVO: Mejor día
+            bestDay?.let { best ->
+                if (best.pomodorosCompleted > 0) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "🏆 Mejor Día",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = best.date,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "${best.pomodorosCompleted} 🍅",
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.tertiary
+                                )
+                                Text(
+                                    text = statsViewModel.formatTime(best.timeWorkedInSeconds),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ← NUEVO: Comparativa semanal
+            weeklyComparison?.let { comparison ->
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Text(
+                            text = "📈 Esta Semana",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceAround
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "${comparison.thisWeekPomodoros}",
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Pomodoros",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "${comparison.thisWeekTasks}",
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Tareas",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "${comparison.avgPomodorosPerDay}",
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Promedio/día",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ← NUEVO: Logros
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "🏆 Logros Desbloqueados",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            if (unlockedAchievements.isEmpty()) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("🎯", style = MaterialTheme.typography.displayMedium)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "¡Empieza a desbloquear logros!",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+            } else {
+                Text(
+                    text = "${unlockedAchievements.size} de ${com.example.pomodoro.data.model.AchievementCatalog.achievements.size} logros",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Grid de logros
+                val chunkedAchievements = unlockedAchievements.chunked(3)
+                chunkedAchievements.forEach { rowAchievements ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        rowAchievements.forEach { achievement ->
+                            AchievementBadge(
+                                achievement = achievement,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        // Rellenar espacios vacíos
+                        repeat(3 - rowAchievements.size) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
 
@@ -382,6 +582,45 @@ fun DayStatCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+    }
+}
+
+// ← NUEVO: Componente de Badge de logro
+@Composable
+fun AchievementBadge(
+    achievement: Achievement,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = achievement.emoji,
+                style = MaterialTheme.typography.displaySmall
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = achievement.title,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+            )
+            Text(
+                text = achievement.description,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2
+            )
         }
     }
 }

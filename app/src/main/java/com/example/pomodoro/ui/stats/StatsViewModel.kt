@@ -4,6 +4,9 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pomodoro.data.database.AppDatabase
+import com.example.pomodoro.data.model.Achievement
+import com.example.pomodoro.data.model.AchievementCatalog
+import com.example.pomodoro.data.model.AchievementCategory
 import com.example.pomodoro.data.model.DailyStats
 import com.example.pomodoro.data.model.RoomType
 import com.example.pomodoro.data.repository.MusicRepository
@@ -12,24 +15,26 @@ import com.example.pomodoro.data.repository.StatsRepository
 import com.example.pomodoro.data.repository.UserRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.*
 
 class StatsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val statsRepository: StatsRepository
     private val userRepository: UserRepository
     private val musicRepository: MusicRepository
-    private val roomRepository: RoomRepository  // ← NUEVO
+    private val roomRepository: RoomRepository
 
     init {
         val dailyStatsDao = AppDatabase.getDatabase(application).dailyStatsDao()
         val userDao = AppDatabase.getDatabase(application).userDao()
         val musicDao = AppDatabase.getDatabase(application).musicDao()
-        val roomItemDao = AppDatabase.getDatabase(application).roomItemDao()  // ← NUEVO
+        val roomItemDao = AppDatabase.getDatabase(application).roomItemDao()
 
         statsRepository = StatsRepository(dailyStatsDao)
         userRepository = UserRepository(userDao)
         musicRepository = MusicRepository(musicDao, userDao)
-        roomRepository = RoomRepository(roomItemDao, userDao)  // ← NUEVO
+        roomRepository = RoomRepository(roomItemDao, userDao)
     }
 
     val user = userRepository.user
@@ -48,14 +53,28 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
     private val _currentStreak = MutableStateFlow(0)
     val currentStreak: StateFlow<Int> = _currentStreak.asStateFlow()
 
-    // ← NUEVO: Estadísticas de habitaciones
     private val _roomsStats = MutableStateFlow(RoomsStats())
     val roomsStats: StateFlow<RoomsStats> = _roomsStats.asStateFlow()
+
+    // ← NUEVO: Logros desbloqueados
+    private val _unlockedAchievements = MutableStateFlow<List<Achievement>>(emptyList())
+    val unlockedAchievements: StateFlow<List<Achievement>> = _unlockedAchievements.asStateFlow()
+
+    // ← NUEVO: Comparativa semanal
+    private val _weeklyComparison = MutableStateFlow<WeeklyComparison?>(null)
+    val weeklyComparison: StateFlow<WeeklyComparison?> = _weeklyComparison.asStateFlow()
+
+    // ← NUEVO: Mejor día
+    private val _bestDay = MutableStateFlow<DailyStats?>(null)
+    val bestDay: StateFlow<DailyStats?> = _bestDay.asStateFlow()
 
     init {
         loadTotalStats()
         loadCurrentStreak()
-        loadRoomsStats()  // ← NUEVO
+        loadRoomsStats()
+        loadAchievements()  // ← NUEVO
+        loadWeeklyComparison()  // ← NUEVO
+        loadBestDay()  // ← NUEVO
     }
 
     private fun loadTotalStats() {
@@ -80,7 +99,6 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // ← NUEVO: Cargar estadísticas de habitaciones
     private fun loadRoomsStats() {
         viewModelScope.launch {
             val gardenProgress = roomRepository.getRoomProgress(RoomType.GARDEN)
@@ -104,6 +122,70 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // ← NUEVO: Cargar logros desbloqueados
+    private fun loadAchievements() {
+        viewModelScope.launch {
+            val totalStats = _totalStats.value
+            val streak = _currentStreak.value
+            val musicCount = unlockedMusicCount.value
+            val roomsCompleted = _roomsStats.value.completedRooms
+
+            val unlocked = mutableListOf<Achievement>()
+
+            AchievementCatalog.achievements.forEach { achievement ->
+                val isUnlocked = when (achievement.category) {
+                    AchievementCategory.POMODOROS -> totalStats.totalPomodoros >= achievement.requirement
+                    AchievementCategory.TASKS -> totalStats.totalTasks >= achievement.requirement
+                    AchievementCategory.NOTES -> totalStats.totalNotes >= achievement.requirement
+                    AchievementCategory.STREAK -> streak >= achievement.requirement
+                    AchievementCategory.MUSIC -> musicCount >= achievement.requirement
+                    AchievementCategory.ROOMS -> roomsCompleted >= achievement.requirement
+                }
+
+                if (isUnlocked) {
+                    unlocked.add(achievement)
+                }
+            }
+
+            _unlockedAchievements.value = unlocked
+        }
+    }
+
+    // ← NUEVO: Comparativa semanal
+    private fun loadWeeklyComparison() {
+        viewModelScope.launch {
+            val last7 = last7Days.value
+            if (last7.isEmpty()) {
+                _weeklyComparison.value = null
+                return@launch
+            }
+
+            // Calcular totales de esta semana (últimos 7 días)
+            val thisWeekPomodoros = last7.sumOf { it.pomodorosCompleted }
+            val thisWeekTasks = last7.sumOf { it.tasksCompleted }
+            val thisWeekTime = last7.sumOf { it.timeWorkedInSeconds }
+
+            // Para semana anterior, necesitaríamos más datos
+            // Por ahora, comparamos con promedio
+            val avgPomodorosPerDay = if (last7.isNotEmpty()) thisWeekPomodoros / last7.size else 0
+
+            _weeklyComparison.value = WeeklyComparison(
+                thisWeekPomodoros = thisWeekPomodoros,
+                thisWeekTasks = thisWeekTasks,
+                thisWeekTime = thisWeekTime,
+                avgPomodorosPerDay = avgPomodorosPerDay
+            )
+        }
+    }
+
+    // ← NUEVO: Mejor día
+    private fun loadBestDay() {
+        viewModelScope.launch {
+            val last7 = last7Days.value
+            _bestDay.value = last7.maxByOrNull { it.pomodorosCompleted }
+        }
+    }
+
     fun formatTime(seconds: Int): String {
         val hours = seconds / 3600
         val minutes = (seconds % 3600) / 60
@@ -122,11 +204,18 @@ data class TotalStats(
     val totalTimeWorked: Int = 0
 )
 
-// ← NUEVO: Data class para estadísticas de habitaciones
 data class RoomsStats(
     val completedRooms: Int = 0,
     val totalRooms: Int = 3,
     val purchasedItems: Int = 0,
     val totalItems: Int = 0,
     val totalPercentage: Int = 0
+)
+
+// ← NUEVO: Comparativa semanal
+data class WeeklyComparison(
+    val thisWeekPomodoros: Int,
+    val thisWeekTasks: Int,
+    val thisWeekTime: Int,
+    val avgPomodorosPerDay: Int
 )
