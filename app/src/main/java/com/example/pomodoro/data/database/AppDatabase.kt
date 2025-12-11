@@ -8,11 +8,18 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.pomodoro.data.model.PomodoroTask
 import com.example.pomodoro.data.model.User
+import com.example.pomodoro.data.model.UnlockedMusic
+import com.example.pomodoro.utils.MusicCatalog
 
-@Database(entities = [PomodoroTask::class, User::class], version = 4, exportSchema = false)
+@Database(
+    entities = [PomodoroTask::class, User::class, UnlockedMusic::class],
+    version = 5,
+    exportSchema = false
+)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao
     abstract fun userDao(): UserDao
+    abstract fun musicDao(): MusicDao
 
     companion object {
         @Volatile
@@ -45,6 +52,22 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Crear tabla de música desbloqueada
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS unlocked_music (
+                        trackId INTEGER PRIMARY KEY NOT NULL
+                    )
+                """)
+
+                // Desbloquear canciones gratuitas por defecto
+                MusicCatalog.freeTracks.forEach { trackId ->
+                    database.execSQL("INSERT OR IGNORE INTO unlocked_music (trackId) VALUES ($trackId)")
+                }
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -52,7 +75,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "pomodoro_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                 INSTANCE = instance
                 instance

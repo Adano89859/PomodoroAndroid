@@ -6,161 +6,50 @@ import com.example.pomodoro.data.model.SessionType
 
 object MusicCatalog {
 
-    private val allTracks = listOf(
-        // Música para TRABAJO (8 tracks)
-        MusicTrack(
-            id = "work_focus_1",
-            name = "Focus 1",
-            description = "Música de concentración #1",
-            resourceId = R.raw.work_focus_1,
-            sessionType = SessionType.WORK
-        ),
-        MusicTrack(
-            id = "work_focus_2",
-            name = "Focus 2",
-            description = "Música de concentración #2",
-            resourceId = R.raw.work_focus_2,
-            sessionType = SessionType.WORK
-        ),
-        MusicTrack(
-            id = "work_focus_3",
-            name = "Focus 3",
-            description = "Música de concentración #3",
-            resourceId = R.raw.work_focus_3,
-            sessionType = SessionType.WORK
-        ),
-        MusicTrack(
-            id = "work_focus_4",
-            name = "Focus 4",
-            description = "Música de concentración #4",
-            resourceId = R.raw.work_focus_4,
-            sessionType = SessionType.WORK
-        ),
-        MusicTrack(
-            id = "work_focus_5",
-            name = "Focus 5",
-            description = "Música de concentración #5",
-            resourceId = R.raw.work_focus_5,
-            sessionType = SessionType.WORK
-        ),
-        MusicTrack(
-            id = "work_focus_6",
-            name = "Focus 6",
-            description = "Música de concentración #6",
-            resourceId = R.raw.work_focus_6,
-            sessionType = SessionType.WORK
-        ),
-        MusicTrack(
-            id = "work_focus_7",
-            name = "Focus 7",
-            description = "Música de concentración #7",
-            resourceId = R.raw.work_focus_7,
-            sessionType = SessionType.WORK
-        ),
-        MusicTrack(
-            id = "work_focus_8",
-            name = "Focus 8",
-            description = "Música de concentración #8",
-            resourceId = R.raw.work_focus_8,
-            sessionType = SessionType.WORK
-        ),
+    // TRABAJO - 5 canciones (1 gratis, 4 de pago)
+    private val workTrack1 = MusicTrack(1, "Focus 1", "Concentración profunda", R.raw.work_focus_1, SessionType.WORK, "🎯", 0)
+    private val workTrack2 = MusicTrack(2, "Focus 2", "Concentración profunda", R.raw.work_focus_2, SessionType.WORK, "🎯", 75)
+    private val workTrack3 = MusicTrack(3, "Focus 3", "Concentración profunda", R.raw.work_focus_3, SessionType.WORK, "🎯", 75)
+    private val workTrack4 = MusicTrack(4, "Focus 4", "Concentración profunda", R.raw.work_focus_4, SessionType.WORK, "🎯", 75)
+    private val workTrack5 = MusicTrack(5, "Focus 5", "Concentración profunda", R.raw.work_focus_5, SessionType.WORK, "🎯", 75)
 
-        // Música para DESCANSO CORTO (6 tracks)
-        MusicTrack(
-            id = "break_short_chill_1",
-            name = "Chill 1",
-            description = "Música relajante #1",
-            resourceId = R.raw.break_short_chill_1,
-            sessionType = SessionType.SHORT_BREAK
-        ),
-        MusicTrack(
-            id = "break_short_chill_2",
-            name = "Chill 2",
-            description = "Música relajante #2",
-            resourceId = R.raw.break_short_chill_2,
-            sessionType = SessionType.SHORT_BREAK
-        ),
-        MusicTrack(
-            id = "break_short_chill_3",
-            name = "Chill 3",
-            description = "Música relajante #3",
-            resourceId = R.raw.break_short_chill_3,
-            sessionType = SessionType.SHORT_BREAK
-        ),
-        MusicTrack(
-            id = "break_short_chill_4",
-            name = "Chill 4",
-            description = "Música relajante #4",
-            resourceId = R.raw.break_short_chill_4,
-            sessionType = SessionType.SHORT_BREAK
-        ),
-        MusicTrack(
-            id = "break_short_chill_5",
-            name = "Chill 5",
-            description = "Música relajante #5",
-            resourceId = R.raw.break_short_chill_5,
-            sessionType = SessionType.SHORT_BREAK
-        ),
-        MusicTrack(
-            id = "break_short_chill_6",
-            name = "Chill 6",
-            description = "Música relajante #6",
-            resourceId = R.raw.break_short_chill_6,
-            sessionType = SessionType.SHORT_BREAK
-        ),
+    // DESCANSO CORTO - 5 canciones (1 gratis, 4 de pago)
+    private val shortBreak1 = MusicTrack(11, "Chill 1", "Relax suave", R.raw.break_short_chill_1, SessionType.SHORT_BREAK, "☁️", 0)
+    private val shortBreak2 = MusicTrack(12, "Chill 2", "Relax suave", R.raw.break_short_chill_2, SessionType.SHORT_BREAK, "☁️", 75)
+    private val shortBreak3 = MusicTrack(13, "Chill 3", "Relax suave", R.raw.break_short_chill_3, SessionType.SHORT_BREAK, "☁️", 75)
+    private val shortBreak4 = MusicTrack(14, "Chill 4", "Relax suave", R.raw.break_short_chill_4, SessionType.SHORT_BREAK, "☁️", 75)
+    private val shortBreak5 = MusicTrack(15, "Chill 5", "Relax suave", R.raw.break_short_chill_5, SessionType.SHORT_BREAK, "☁️", 75)
 
-        // Música para DESCANSO LARGO (6 tracks)
-        MusicTrack(
-            id = "break_long_deep_1",
-            name = "Deep Relax 1",
-            description = "Relajación profunda #1",
-            resourceId = R.raw.break_long_deep_1,
-            sessionType = SessionType.LONG_BREAK
-        ),
-        MusicTrack(
-            id = "break_long_deep_2",
-            name = "Deep Relax 2",
-            description = "Relajación profunda #2",
-            resourceId = R.raw.break_long_deep_2,
-            sessionType = SessionType.LONG_BREAK
-        ),
-        MusicTrack(
-            id = "break_long_deep_3",
-            name = "Deep Relax 3",
-            description = "Relajación profunda #3",
-            resourceId = R.raw.break_long_deep_3,
-            sessionType = SessionType.LONG_BREAK
-        ),
-        MusicTrack(
-            id = "break_long_deep_4",
-            name = "Deep Relax 4",
-            description = "Relajación profunda #4",
-            resourceId = R.raw.break_long_deep_4,
-            sessionType = SessionType.LONG_BREAK
-        ),
-        MusicTrack(
-            id = "break_long_deep_5",
-            name = "Deep Relax 5",
-            description = "Relajación profunda #5",
-            resourceId = R.raw.break_long_deep_5,
-            sessionType = SessionType.LONG_BREAK
-        ),
-        MusicTrack(
-            id = "break_long_deep_6",
-            name = "Deep Relax 6",
-            description = "Relajación profunda #6",
-            resourceId = R.raw.break_long_deep_6,
-            sessionType = SessionType.LONG_BREAK
-        )
-    )
+    // DESCANSO LARGO - 5 canciones (1 gratis, 4 de pago)
+    private val longBreak1 = MusicTrack(21, "Deep 1", "Descanso profundo", R.raw.break_long_deep_1, SessionType.LONG_BREAK, "😌", 0)
+    private val longBreak2 = MusicTrack(22, "Deep 2", "Descanso profundo", R.raw.break_long_deep_2, SessionType.LONG_BREAK, "😌", 75)
+    private val longBreak3 = MusicTrack(23, "Deep 3", "Descanso profundo", R.raw.break_long_deep_3, SessionType.LONG_BREAK, "😌", 75)
+    private val longBreak4 = MusicTrack(24, "Deep 4", "Descanso profundo", R.raw.break_long_deep_4, SessionType.LONG_BREAK, "😌", 75)
+    private val longBreak5 = MusicTrack(25, "Deep 5", "Descanso profundo", R.raw.break_long_deep_5, SessionType.LONG_BREAK, "😌", 75)
 
-    fun getTracksForSession(sessionType: SessionType): List<MusicTrack> {
-        return allTracks.filter { it.sessionType == sessionType }
-    }
+    val workTracks = listOf(workTrack1, workTrack2, workTrack3, workTrack4, workTrack5)
+    val shortBreakTracks = listOf(shortBreak1, shortBreak2, shortBreak3, shortBreak4, shortBreak5)
+    val longBreakTracks = listOf(longBreak1, longBreak2, longBreak3, longBreak4, longBreak5)
 
-    fun getTrackById(id: String): MusicTrack? {
+    val allTracks = workTracks + shortBreakTracks + longBreakTracks
+
+    // IDs de canciones gratuitas (primera de cada categoría)
+    val freeTracks = listOf(1, 11, 21)
+
+    fun getTrackById(id: Int): MusicTrack? {
         return allTracks.find { it.id == id }
     }
 
-    fun getAllTracks(): List<MusicTrack> = allTracks
+    // Versión legacy con String (para compatibilidad temporal)
+    fun getTrackById(id: String): MusicTrack? {
+        return allTracks.find { it.id.toString() == id }
+    }
+
+    fun getTracksByType(sessionType: SessionType): List<MusicTrack> {
+        return when (sessionType) {
+            SessionType.WORK -> workTracks
+            SessionType.SHORT_BREAK -> shortBreakTracks
+            SessionType.LONG_BREAK -> longBreakTracks
+        }
+    }
 }

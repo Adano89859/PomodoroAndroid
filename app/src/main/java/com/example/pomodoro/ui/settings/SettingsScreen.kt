@@ -20,7 +20,8 @@ import com.example.pomodoro.ui.timer.PomodoroViewModel
 @Composable
 fun SettingsScreen(
     viewModel: PomodoroViewModel,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToShop: () -> Unit  // ← AGREGAR este parámetro
 ) {
     val settings by viewModel.settings.collectAsState()
     var localSettings by remember { mutableStateOf(settings) }
@@ -59,7 +60,7 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Sección de Apariencia (PRIMERO para que sea visible)
+            // Sección de Apariencia
             Text(
                 text = "Apariencia",
                 style = MaterialTheme.typography.titleLarge,
@@ -109,14 +110,12 @@ fun SettingsScreen(
                 }
             }
 
-            // Diálogo de selección de tema
             if (showThemeDialog) {
                 ThemeSelectorDialog(
                     currentTheme = localSettings.appTheme,
                     onDismiss = { showThemeDialog = false },
                     onThemeSelected = { theme ->
                         localSettings = localSettings.copy(appTheme = theme)
-                        // Aplicar inmediatamente para previsualizar
                         viewModel.updateSettings(localSettings)
                         showThemeDialog = false
                     }
@@ -341,8 +340,9 @@ fun SettingsScreen(
                         localSettings = localSettings.copy(workMusicTrackId = trackId)
                     },
                     onPreviewTrack = { trackId ->
-                        // TODO: Implementar preview si quieres
-                    }
+                        // TODO: Implementar preview
+                    },
+                    onNavigateToShop = onNavigateToShop  // ← NUEVO
                 )
             }
 
@@ -356,7 +356,8 @@ fun SettingsScreen(
                     },
                     onPreviewTrack = { trackId ->
                         // TODO: Implementar preview
-                    }
+                    },
+                    onNavigateToShop = onNavigateToShop  // ← NUEVO
                 )
             }
 
@@ -370,7 +371,8 @@ fun SettingsScreen(
                     },
                     onPreviewTrack = { trackId ->
                         // TODO: Implementar preview
-                    }
+                    },
+                    onNavigateToShop = onNavigateToShop  // ← NUEVO
                 )
             }
 
@@ -480,7 +482,7 @@ fun SwitchSetting(
 @Composable
 fun MusicSelectionRow(
     label: String,
-    currentTrackId: String,
+    currentTrackId: Int,  // ← CAMBIADO de String a Int
     onClick: () -> Unit
 ) {
     val track = com.example.pomodoro.utils.MusicCatalog.getTrackById(currentTrackId)

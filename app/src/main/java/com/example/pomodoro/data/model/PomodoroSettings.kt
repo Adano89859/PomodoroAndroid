@@ -9,8 +9,8 @@ data class PomodoroSettings(
     val autoStartPomodoros: Boolean = false,
     val soundEnabled: Boolean = true,
     val vibrationEnabled: Boolean = true,
-    val workMusicTrackId: String = "work_focus_1",
-    val shortBreakMusicTrackId: String = "break_short_chill_1",
-    val longBreakMusicTrackId: String = "break_long_deep_1",
-    val appTheme: AppTheme = AppTheme.FRESITA_LIGHT
+    val workMusicTrackId: Int = 1,
+    val shortBreakMusicTrackId: Int = 11,
+    val longBreakMusicTrackId: Int = 21,
+    val appTheme: AppTheme = AppTheme.FRESITA_LIGHT  // ← CAMBIADO
 )
