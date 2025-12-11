@@ -48,6 +48,9 @@ fun NavGraph(
                 viewModel = viewModel,
                 onNavigateBack = {
                     navController.popBackStack()
+                },
+                onNavigateToShop = {  // ← NUEVO
+                    navController.navigate(Screen.Shop.route)
                 }
             )
         }

@@ -11,20 +11,28 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.pomodoro.data.model.MusicTrack
 import com.example.pomodoro.data.model.SessionType
+import com.example.pomodoro.ui.shop.ShopViewModel
 import com.example.pomodoro.utils.MusicCatalog
 
 @Composable
 fun MusicSelectorDialog(
     sessionType: SessionType,
-    currentTrackId: Int,  // ← CAMBIADO de String a Int
+    currentTrackId: Int,
     onDismiss: () -> Unit,
-    onTrackSelected: (Int) -> Unit,  // ← CAMBIADO de String a Int
-    onPreviewTrack: (Int) -> Unit  // ← CAMBIADO de String a Int
+    onTrackSelected: (Int) -> Unit,
+    onPreviewTrack: (Int) -> Unit,
+    onNavigateToShop: (() -> Unit)? = null  // ← NUEVO: navegación a tienda
 ) {
-    val tracks = MusicCatalog.getTracksByType(sessionType)  // ← CAMBIADO nombre del método
+    val shopViewModel: ShopViewModel = viewModel()
+    val unlockedMusicIds by shopViewModel.unlockedMusicIds.collectAsState(initial = emptyList())
+
+    val allTracks = MusicCatalog.getTracksByType(sessionType)
+    val unlockedTracks = allTracks.filter { it.id in unlockedMusicIds }
 
     val title = when (sessionType) {
         SessionType.WORK -> "Música para Trabajo"
@@ -41,22 +49,101 @@ fun MusicSelectorDialog(
             )
         },
         text = {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(400.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(tracks) { track ->
-                    MusicTrackItem(
-                        track = track,
-                        isSelected = track.id == currentTrackId,
-                        onSelect = {
-                            onTrackSelected(track.id)
-                            onDismiss()
-                        },
-                        onPreview = { onPreviewTrack(track.id) }
+            if (unlockedTracks.isEmpty()) {
+                // Mensaje si no hay canciones desbloqueadas
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Lock,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.primary
                     )
+                    Text(
+                        text = "No tienes canciones desbloqueadas",
+                        style = MaterialTheme.typography.titleMedium,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = "Visita la tienda para desbloquear más música",
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    onNavigateToShop?.let { navigate ->
+                        Button(
+                            onClick = {
+                                onDismiss()
+                                navigate()
+                            }
+                        ) {
+                            Icon(Icons.Default.ShoppingCart, null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Ir a la Tienda")
+                        }
+                    }
+                }
+            } else {
+                // Lista de canciones desbloqueadas
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(400.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(unlockedTracks) { track ->
+                        MusicTrackItem(
+                            track = track,
+                            isSelected = track.id == currentTrackId,
+                            onSelect = {
+                                onTrackSelected(track.id)
+                                onDismiss()
+                            },
+                            onPreview = { onPreviewTrack(track.id) }
+                        )
+                    }
+
+                    // Botón para ver más en la tienda
+                    item {
+                        onNavigateToShop?.let { navigate ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onDismiss()
+                                        navigate()
+                                    },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.ShoppingCart,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = "Ver más en la tienda",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         },

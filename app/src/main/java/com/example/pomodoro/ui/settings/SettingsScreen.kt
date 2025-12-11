@@ -20,7 +20,8 @@ import com.example.pomodoro.ui.timer.PomodoroViewModel
 @Composable
 fun SettingsScreen(
     viewModel: PomodoroViewModel,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToShop: () -> Unit  // ← AGREGAR este parámetro
 ) {
     val settings by viewModel.settings.collectAsState()
     var localSettings by remember { mutableStateOf(settings) }
@@ -339,8 +340,9 @@ fun SettingsScreen(
                         localSettings = localSettings.copy(workMusicTrackId = trackId)
                     },
                     onPreviewTrack = { trackId ->
-                        // TODO: Implementar preview si quieres
-                    }
+                        // TODO: Implementar preview
+                    },
+                    onNavigateToShop = onNavigateToShop  // ← NUEVO
                 )
             }
 
@@ -354,7 +356,8 @@ fun SettingsScreen(
                     },
                     onPreviewTrack = { trackId ->
                         // TODO: Implementar preview
-                    }
+                    },
+                    onNavigateToShop = onNavigateToShop  // ← NUEVO
                 )
             }
 
@@ -368,7 +371,8 @@ fun SettingsScreen(
                     },
                     onPreviewTrack = { trackId ->
                         // TODO: Implementar preview
-                    }
+                    },
+                    onNavigateToShop = onNavigateToShop  // ← NUEVO
                 )
             }
 
