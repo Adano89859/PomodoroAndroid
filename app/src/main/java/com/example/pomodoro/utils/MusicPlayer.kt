@@ -7,9 +7,9 @@ import com.example.pomodoro.data.model.SessionType
 class MusicPlayer(private val context: Context) {
 
     private var mediaPlayer: MediaPlayer? = null
-    private var currentTrackId: String? = null
+    private var currentTrackId: Int? = null  // ← CAMBIADO de String a Int
 
-    fun playTrack(trackId: String, isEnabled: Boolean) {
+    fun playTrack(trackId: Int, isEnabled: Boolean) {  // ← CAMBIADO de String a Int
         if (!isEnabled) {
             stop()
             return
@@ -41,9 +41,9 @@ class MusicPlayer(private val context: Context) {
     fun playMusicForSession(
         sessionType: SessionType,
         isEnabled: Boolean,
-        workTrackId: String,
-        shortBreakTrackId: String,
-        longBreakTrackId: String
+        workTrackId: Int,           // ← CAMBIADO de String a Int
+        shortBreakTrackId: Int,     // ← CAMBIADO de String a Int
+        longBreakTrackId: Int       // ← CAMBIADO de String a Int
     ) {
         if (!isEnabled) {
             stop()

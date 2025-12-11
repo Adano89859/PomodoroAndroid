@@ -19,12 +19,12 @@ import com.example.pomodoro.utils.MusicCatalog
 @Composable
 fun MusicSelectorDialog(
     sessionType: SessionType,
-    currentTrackId: String,
+    currentTrackId: Int,  // ← CAMBIADO de String a Int
     onDismiss: () -> Unit,
-    onTrackSelected: (String) -> Unit,
-    onPreviewTrack: (String) -> Unit
+    onTrackSelected: (Int) -> Unit,  // ← CAMBIADO de String a Int
+    onPreviewTrack: (Int) -> Unit  // ← CAMBIADO de String a Int
 ) {
-    val tracks = MusicCatalog.getTracksForSession(sessionType)
+    val tracks = MusicCatalog.getTracksByType(sessionType)  // ← CAMBIADO nombre del método
 
     val title = when (sessionType) {
         SessionType.WORK -> "Música para Trabajo"

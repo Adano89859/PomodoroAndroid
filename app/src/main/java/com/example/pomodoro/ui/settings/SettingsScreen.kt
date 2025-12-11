@@ -59,7 +59,7 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Sección de Apariencia (PRIMERO para que sea visible)
+            // Sección de Apariencia
             Text(
                 text = "Apariencia",
                 style = MaterialTheme.typography.titleLarge,
@@ -109,14 +109,12 @@ fun SettingsScreen(
                 }
             }
 
-            // Diálogo de selección de tema
             if (showThemeDialog) {
                 ThemeSelectorDialog(
                     currentTheme = localSettings.appTheme,
                     onDismiss = { showThemeDialog = false },
                     onThemeSelected = { theme ->
                         localSettings = localSettings.copy(appTheme = theme)
-                        // Aplicar inmediatamente para previsualizar
                         viewModel.updateSettings(localSettings)
                         showThemeDialog = false
                     }
@@ -480,7 +478,7 @@ fun SwitchSetting(
 @Composable
 fun MusicSelectionRow(
     label: String,
-    currentTrackId: String,
+    currentTrackId: Int,  // ← CAMBIADO de String a Int
     onClick: () -> Unit
 ) {
     val track = com.example.pomodoro.utils.MusicCatalog.getTrackById(currentTrackId)

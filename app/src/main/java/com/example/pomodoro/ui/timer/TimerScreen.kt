@@ -30,7 +30,8 @@ import com.example.pomodoro.ui.dialogs.CoinRewardDialog
 fun TimerScreen(
     viewModel: PomodoroViewModel,
     onNavigateToTasks: () -> Unit,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    onNavigateToShop: () -> Unit  // ← NUEVO
 ) {
     val timerState by viewModel.timerState.collectAsState()
     val timeRemaining by viewModel.timeRemaining.collectAsState()
@@ -39,17 +40,14 @@ fun TimerScreen(
     val currentTask by viewModel.currentTask.collectAsState()
     val settings by viewModel.settings.collectAsState()
 
-    // NUEVO: Estados de monedas y recompensas
     val userCoins by viewModel.userCoins.collectAsState()
     val showCoinRewardDialog by viewModel.showCoinRewardDialog.collectAsState()
     val lastCoinReward by viewModel.lastCoinReward.collectAsState()
 
-    // Estados de diálogos
     val showProgressDialog by viewModel.showProgressDialog.collectAsState()
     val showCelebrationDialog by viewModel.showCelebrationDialog.collectAsState()
     val celebrationSessionType by viewModel.celebrationSessionType.collectAsState()
 
-    // Calcular el progreso
     val totalTime = when (sessionType) {
         SessionType.WORK -> settings.workDuration * 60
         SessionType.SHORT_BREAK -> settings.shortBreakDuration * 60
@@ -64,7 +62,7 @@ fun TimerScreen(
             TopAppBar(
                 title = { Text("Pomodoro Timer") },
                 actions = {
-                    // NUEVO: Mostrar monedas
+                    // Mostrar monedas
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(horizontal = 8.dp)
@@ -75,6 +73,11 @@ fun TimerScreen(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
+                    }
+
+                    // ← NUEVO: Icono de tienda
+                    IconButton(onClick = onNavigateToShop) {
+                        Icon(Icons.Default.ShoppingCart, "Tienda")
                     }
 
                     IconButton(onClick = onNavigateToTasks) {
@@ -95,7 +98,6 @@ fun TimerScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Indicador de sesión
             SessionIndicator(
                 sessionType = sessionType,
                 completedPomodoros = completedPomodoros,
@@ -104,7 +106,6 @@ fun TimerScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Mostrar tarea actual
             currentTask?.let { task ->
                 CurrentTaskCard(
                     task = task,
@@ -145,7 +146,6 @@ fun TimerScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Timer circular
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier.size(280.dp)
@@ -176,7 +176,6 @@ fun TimerScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Controles del timer
             Row(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -232,7 +231,6 @@ fun TimerScreen(
         }
     }
 
-    // Diálogos
     if (showProgressDialog) {
         ProgressNoteDialog(
             onDismiss = { viewModel.saveProgressNote("") },
