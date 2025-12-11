@@ -10,16 +10,18 @@ import com.example.pomodoro.data.model.PomodoroTask
 import com.example.pomodoro.data.model.User
 import com.example.pomodoro.data.model.UnlockedMusic
 import com.example.pomodoro.utils.MusicCatalog
+import com.example.pomodoro.data.model.DailyStats
 
 @Database(
-    entities = [PomodoroTask::class, User::class, UnlockedMusic::class],
-    version = 5,
+    entities = [PomodoroTask::class, User::class, UnlockedMusic::class, DailyStats::class],
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao
     abstract fun userDao(): UserDao
     abstract fun musicDao(): MusicDao
+    abstract fun dailyStatsDao(): DailyStatsDao
 
     companion object {
         @Volatile
@@ -68,6 +70,20 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS daily_stats (
+                        date TEXT PRIMARY KEY NOT NULL,
+                        pomodorosCompleted INTEGER NOT NULL DEFAULT 0,
+                        tasksCompleted INTEGER NOT NULL DEFAULT 0,
+                        notesWritten INTEGER NOT NULL DEFAULT 0,
+                        timeWorkedInSeconds INTEGER NOT NULL DEFAULT 0
+                    )
+                """)
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -75,7 +91,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "pomodoro_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)  // ← AGREGAR MIGRATION_5_6
                     .build()
                 INSTANCE = instance
                 instance

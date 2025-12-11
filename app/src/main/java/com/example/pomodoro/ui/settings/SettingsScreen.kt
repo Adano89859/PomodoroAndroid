@@ -21,7 +21,8 @@ import com.example.pomodoro.ui.timer.PomodoroViewModel
 fun SettingsScreen(
     viewModel: PomodoroViewModel,
     onNavigateBack: () -> Unit,
-    onNavigateToShop: () -> Unit  // ← AGREGAR este parámetro
+    onNavigateToShop: () -> Unit,
+    onNavigateToStats: () -> Unit
 ) {
     val settings by viewModel.settings.collectAsState()
     var localSettings by remember { mutableStateOf(settings) }
@@ -374,6 +375,54 @@ fun SettingsScreen(
                     },
                     onNavigateToShop = onNavigateToShop  // ← NUEVO
                 )
+            }
+
+            // Sección de Progreso
+            Text(
+                text = "Progreso",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onNavigateToStats() }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "📊",
+                            style = MaterialTheme.typography.headlineMedium
+                        )
+                        Column {
+                            Text(
+                                text = "Ver Estadísticas",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = "Tu progreso y logros",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        contentDescription = "Ver estadísticas",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))

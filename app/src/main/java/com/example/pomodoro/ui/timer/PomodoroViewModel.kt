@@ -10,6 +10,7 @@ import com.example.pomodoro.data.model.SessionType
 import com.example.pomodoro.data.model.TimerState
 import com.example.pomodoro.data.repository.TaskRepository
 import com.example.pomodoro.data.repository.UserRepository
+import com.example.pomodoro.data.repository.StatsRepository  // ← NUEVO
 import com.example.pomodoro.data.repository.CoinReward
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -32,61 +33,52 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
 
     private val repository: TaskRepository
     private val userRepository: UserRepository
+    private val statsRepository: StatsRepository  // ← NUEVO
     private val notificationHelper = NotificationHelper(application)
     private val musicPlayer = MusicPlayer(application)
 
     init {
         val taskDao = AppDatabase.getDatabase(application).taskDao()
         val userDao = AppDatabase.getDatabase(application).userDao()
+        val dailyStatsDao = AppDatabase.getDatabase(application).dailyStatsDao()  // ← NUEVO
         repository = TaskRepository(taskDao)
         userRepository = UserRepository(userDao)
+        statsRepository = StatsRepository(dailyStatsDao)  // ← NUEVO
 
-        // Asegurar que existe un usuario
         viewModelScope.launch {
             userRepository.ensureUserExists()
         }
     }
 
-    // NUEVO: Flow de monedas del usuario
     val userCoins: StateFlow<Int> = userRepository.user
         .map { it?.coins ?: 0 }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    // Settings
     private val _settings = MutableStateFlow(PomodoroSettings())
     val settings: StateFlow<PomodoroSettings> = _settings.asStateFlow()
 
-    // Timer State
     private val _timerState = MutableStateFlow(TimerState.IDLE)
     val timerState: StateFlow<TimerState> = _timerState.asStateFlow()
 
-    // Session Type
     private val _sessionType = MutableStateFlow(SessionType.WORK)
     val sessionType: StateFlow<SessionType> = _sessionType.asStateFlow()
 
-    // Time remaining in seconds
     private val _timeRemaining = MutableStateFlow(25 * 60)
     val timeRemaining: StateFlow<Int> = _timeRemaining.asStateFlow()
 
-    // Completed pomodoros in current cycle
     private val _completedPomodoros = MutableStateFlow(0)
     val completedPomodoros: StateFlow<Int> = _completedPomodoros.asStateFlow()
 
-    // Current task
     private val _currentTask = MutableStateFlow<PomodoroTask?>(null)
     val currentTask: StateFlow<PomodoroTask?> = _currentTask.asStateFlow()
 
-    // Tasks from repository
     val activeTasks = repository.activeTasks
     val completedTasks = repository.completedTasks
 
     private var timerJob: Job? = null
-
-    // Variables para trackear tiempo trabajado
     private var sessionStartTime: Long = 0
     private var accumulatedWorkTime: Int = 0
 
-    // Estados para diálogos
     private val _showProgressDialog = MutableStateFlow(false)
     val showProgressDialog: StateFlow<Boolean> = _showProgressDialog.asStateFlow()
 
@@ -96,14 +88,12 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
     private val _celebrationSessionType = MutableStateFlow<SessionType?>(null)
     val celebrationSessionType: StateFlow<SessionType?> = _celebrationSessionType.asStateFlow()
 
-    // NUEVO: Estados para mostrar recompensa de monedas
     private val _showCoinRewardDialog = MutableStateFlow(false)
     val showCoinRewardDialog: StateFlow<Boolean> = _showCoinRewardDialog.asStateFlow()
 
     private val _lastCoinReward = MutableStateFlow<CoinReward?>(null)
     val lastCoinReward: StateFlow<CoinReward?> = _lastCoinReward.asStateFlow()
 
-    // Bonus de tiempo acumulado
     private var bonusTimeInSeconds = 0
 
     init {
@@ -208,9 +198,9 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
                 _currentTask.value?.let { task ->
                     viewModelScope.launch {
                         repository.incrementPomodoro(task)
-                        // NUEVO: Otorgar monedas por pomodoro
                         userRepository.addCoins(CoinReward.POMODORO_COMPLETED.amount, CoinReward.POMODORO_COMPLETED)
                         showCoinReward(CoinReward.POMODORO_COMPLETED)
+                        statsRepository.incrementPomodoro()  // ← NUEVO
                     }
                 }
 
@@ -239,6 +229,7 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
             if (accumulatedWorkTime > 0) {
                 viewModelScope.launch {
                     repository.addTimeToTask(task, accumulatedWorkTime)
+                    statsRepository.addTimeWorked(accumulatedWorkTime)  // ← NUEVO
                     _currentTask.value = task.copy(
                         timeSpentInSeconds = task.timeSpentInSeconds + accumulatedWorkTime
                     )
@@ -290,9 +281,9 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
     fun completeTask(task: PomodoroTask) {
         viewModelScope.launch {
             repository.completeTask(task)
-            // NUEVO: Otorgar monedas por completar tarea
             userRepository.addCoins(CoinReward.TASK_COMPLETED.amount, CoinReward.TASK_COMPLETED)
             showCoinReward(CoinReward.TASK_COMPLETED)
+            statsRepository.incrementTask()  // ← NUEVO
 
             if (_currentTask.value?.id == task.id) {
                 _currentTask.value = null
@@ -346,9 +337,9 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
                     val updatedTask = repository.getTaskById(task.id)
                     _currentTask.value = updatedTask
 
-                    // NUEVO: Otorgar monedas por escribir nota
                     userRepository.addCoins(CoinReward.PROGRESS_NOTE.amount, CoinReward.PROGRESS_NOTE)
                     showCoinReward(CoinReward.PROGRESS_NOTE)
+                    statsRepository.incrementNote()  // ← NUEVO
                 }
             }
         }
@@ -395,9 +386,9 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
         _currentTask.value?.let { task ->
             viewModelScope.launch {
                 repository.incrementPomodoro(task)
-                // NUEVO: Otorgar monedas por pomodoro
                 userRepository.addCoins(CoinReward.POMODORO_COMPLETED.amount, CoinReward.POMODORO_COMPLETED)
                 showCoinReward(CoinReward.POMODORO_COMPLETED)
+                statsRepository.incrementPomodoro()  // ← NUEVO
             }
         }
 
@@ -420,7 +411,6 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
         _celebrationSessionType.value = null
     }
 
-    // NUEVO: Métodos para recompensas de monedas
     private fun showCoinReward(reward: CoinReward) {
         _lastCoinReward.value = reward
         _showCoinRewardDialog.value = true
