@@ -9,11 +9,16 @@ import com.example.pomodoro.data.model.PomodoroTask
 import com.example.pomodoro.data.model.SessionType
 import com.example.pomodoro.data.model.TimerState
 import com.example.pomodoro.data.repository.TaskRepository
+import com.example.pomodoro.data.repository.UserRepository
+import com.example.pomodoro.data.repository.CoinReward
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import android.content.Context
 import android.os.Build
@@ -26,13 +31,26 @@ import com.example.pomodoro.utils.MusicPlayer
 class PomodoroViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: TaskRepository
+    private val userRepository: UserRepository
     private val notificationHelper = NotificationHelper(application)
     private val musicPlayer = MusicPlayer(application)
 
     init {
         val taskDao = AppDatabase.getDatabase(application).taskDao()
+        val userDao = AppDatabase.getDatabase(application).userDao()
         repository = TaskRepository(taskDao)
+        userRepository = UserRepository(userDao)
+
+        // Asegurar que existe un usuario
+        viewModelScope.launch {
+            userRepository.ensureUserExists()
+        }
     }
+
+    // NUEVO: Flow de monedas del usuario
+    val userCoins: StateFlow<Int> = userRepository.user
+        .map { it?.coins ?: 0 }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     // Settings
     private val _settings = MutableStateFlow(PomodoroSettings())
@@ -64,11 +82,11 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
 
     private var timerJob: Job? = null
 
-    // NUEVO: Variables para trackear tiempo trabajado
+    // Variables para trackear tiempo trabajado
     private var sessionStartTime: Long = 0
-    private var accumulatedWorkTime: Int = 0 // en segundos
+    private var accumulatedWorkTime: Int = 0
 
-    // NUEVO: Estados para diálogos
+    // Estados para diálogos
     private val _showProgressDialog = MutableStateFlow(false)
     val showProgressDialog: StateFlow<Boolean> = _showProgressDialog.asStateFlow()
 
@@ -77,6 +95,13 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
 
     private val _celebrationSessionType = MutableStateFlow<SessionType?>(null)
     val celebrationSessionType: StateFlow<SessionType?> = _celebrationSessionType.asStateFlow()
+
+    // NUEVO: Estados para mostrar recompensa de monedas
+    private val _showCoinRewardDialog = MutableStateFlow(false)
+    val showCoinRewardDialog: StateFlow<Boolean> = _showCoinRewardDialog.asStateFlow()
+
+    private val _lastCoinReward = MutableStateFlow<CoinReward?>(null)
+    val lastCoinReward: StateFlow<CoinReward?> = _lastCoinReward.asStateFlow()
 
     // Bonus de tiempo acumulado
     private var bonusTimeInSeconds = 0
@@ -90,12 +115,10 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
 
         _timerState.value = TimerState.RUNNING
 
-        // NUEVO: Registrar inicio de sesión de trabajo
         if (_sessionType.value == SessionType.WORK) {
             sessionStartTime = System.currentTimeMillis()
         }
 
-        // Iniciar música si está habilitada
         if (_settings.value.soundEnabled) {
             musicPlayer.playMusicForSession(
                 _sessionType.value,
@@ -123,7 +146,6 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
         timerJob?.cancel()
         musicPlayer.pause()
 
-        // NUEVO: Guardar tiempo trabajado al pausar (solo en sesiones de trabajo)
         if (_sessionType.value == SessionType.WORK && sessionStartTime > 0) {
             val workTime = ((System.currentTimeMillis() - sessionStartTime) / 1000).toInt()
             accumulatedWorkTime += workTime
@@ -134,7 +156,6 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
     fun skipSession() {
         timerJob?.cancel()
 
-        // NUEVO: Guardar tiempo trabajado antes de saltar
         if (_sessionType.value == SessionType.WORK && sessionStartTime > 0) {
             val workTime = ((System.currentTimeMillis() - sessionStartTime) / 1000).toInt()
             accumulatedWorkTime += workTime
@@ -146,27 +167,20 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun onTimerComplete() {
-        // Calcular tiempo trabajado si es sesión de trabajo
         if (_sessionType.value == SessionType.WORK && sessionStartTime > 0) {
             val workTime = ((System.currentTimeMillis() - sessionStartTime) / 1000).toInt()
             accumulatedWorkTime += workTime
-            // NO llamar a saveAccumulatedTime() aquí todavía
             sessionStartTime = 0
 
-            // Mostrar diálogo de progreso si hay tarea activa
             if (_currentTask.value != null) {
                 _showProgressDialog.value = true
-                return // Pausar aquí hasta que se complete el diálogo
+                return
             }
         }
 
-        // Si no hay tarea, guardar tiempo y continuar
         saveAccumulatedTime()
-
-        // Mostrar notificación
         notificationHelper.showSessionCompleteNotification(_sessionType.value)
 
-        // Vibrar si está habilitado
         if (_settings.value.vibrationEnabled) {
             val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val vibratorManager = getApplication<Application>().getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
@@ -184,7 +198,6 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
             }
         }
 
-        // Mostrar diálogo de celebración
         _celebrationSessionType.value = _sessionType.value
         _showCelebrationDialog.value = true
 
@@ -195,6 +208,9 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
                 _currentTask.value?.let { task ->
                     viewModelScope.launch {
                         repository.incrementPomodoro(task)
+                        // NUEVO: Otorgar monedas por pomodoro
+                        userRepository.addCoins(CoinReward.POMODORO_COMPLETED.amount, CoinReward.POMODORO_COMPLETED)
+                        showCoinReward(CoinReward.POMODORO_COMPLETED)
                     }
                 }
 
@@ -218,17 +234,14 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    // NUEVO: Guardar tiempo acumulado en la tarea SIN resetear
     private fun saveAccumulatedTime() {
         _currentTask.value?.let { task ->
             if (accumulatedWorkTime > 0) {
                 viewModelScope.launch {
                     repository.addTimeToTask(task, accumulatedWorkTime)
-                    // Recargar la tarea para mostrar el tiempo actualizado
                     _currentTask.value = task.copy(
                         timeSpentInSeconds = task.timeSpentInSeconds + accumulatedWorkTime
                     )
-                    // NO resetear aquí, lo haremos después de guardar la nota
                 }
             }
         }
@@ -249,7 +262,6 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun setCurrentTask(task: PomodoroTask?) {
-        // Guardar tiempo acumulado de la tarea anterior
         if (_currentTask.value != null && accumulatedWorkTime > 0) {
             saveAccumulatedTime()
         }
@@ -258,7 +270,6 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
         accumulatedWorkTime = 0
     }
 
-    // Task management functions
     fun addTask(title: String, description: String = "") {
         viewModelScope.launch {
             repository.insertTask(
@@ -279,6 +290,10 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
     fun completeTask(task: PomodoroTask) {
         viewModelScope.launch {
             repository.completeTask(task)
+            // NUEVO: Otorgar monedas por completar tarea
+            userRepository.addCoins(CoinReward.TASK_COMPLETED.amount, CoinReward.TASK_COMPLETED)
+            showCoinReward(CoinReward.TASK_COMPLETED)
+
             if (_currentTask.value?.id == task.id) {
                 _currentTask.value = null
             }
@@ -300,14 +315,12 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    // Formato de tiempo
     fun formatTime(seconds: Int): String {
         val minutes = seconds / 60
         val secs = seconds % 60
         return String.format("%02d:%02d", minutes, secs)
     }
 
-    // NUEVO: Formatear tiempo trabajado (puede ser más de 60 minutos)
     fun formatWorkTime(seconds: Int): String {
         val hours = seconds / 3600
         val minutes = (seconds % 3600) / 60
@@ -329,12 +342,13 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
                 bonusTimeInSeconds = bonus
 
                 viewModelScope.launch {
-                    // Guardar la nota
                     repository.addProgressNote(task, noteText, timeToSave)
-
-                    // NUEVO: Recargar la tarea desde la base de datos
                     val updatedTask = repository.getTaskById(task.id)
                     _currentTask.value = updatedTask
+
+                    // NUEVO: Otorgar monedas por escribir nota
+                    userRepository.addCoins(CoinReward.PROGRESS_NOTE.amount, CoinReward.PROGRESS_NOTE)
+                    showCoinReward(CoinReward.PROGRESS_NOTE)
                 }
             }
         }
@@ -354,10 +368,8 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun continueAfterProgressNote() {
-        // Mostrar notificación
         notificationHelper.showSessionCompleteNotification(_sessionType.value)
 
-        // Vibrar si está habilitado
         if (_settings.value.vibrationEnabled) {
             val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val vibratorManager = getApplication<Application>().getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
@@ -375,16 +387,17 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
             }
         }
 
-        // Mostrar celebración
         _celebrationSessionType.value = _sessionType.value
         _showCelebrationDialog.value = true
 
-        // Cambiar de sesión
         _completedPomodoros.value++
 
         _currentTask.value?.let { task ->
             viewModelScope.launch {
                 repository.incrementPomodoro(task)
+                // NUEVO: Otorgar monedas por pomodoro
+                userRepository.addCoins(CoinReward.POMODORO_COMPLETED.amount, CoinReward.POMODORO_COMPLETED)
+                showCoinReward(CoinReward.POMODORO_COMPLETED)
             }
         }
 
@@ -407,7 +420,17 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
         _celebrationSessionType.value = null
     }
 
-    // NUEVO: Override de resetTimer para aplicar bonus
+    // NUEVO: Métodos para recompensas de monedas
+    private fun showCoinReward(reward: CoinReward) {
+        _lastCoinReward.value = reward
+        _showCoinRewardDialog.value = true
+    }
+
+    fun dismissCoinReward() {
+        _showCoinRewardDialog.value = false
+        _lastCoinReward.value = null
+    }
+
     fun resetTimer() {
         _timerState.value = TimerState.IDLE
         timerJob?.cancel()
@@ -419,7 +442,6 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
             SessionType.LONG_BREAK -> _settings.value.longBreakDuration * 60
         }
 
-        // Aplicar bonus si es descanso
         val finalDuration = if (_sessionType.value != SessionType.WORK) {
             baseDuration + bonusTimeInSeconds
         } else {
@@ -434,7 +456,6 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
         timerJob?.cancel()
         musicPlayer.stop()
 
-        // Guardar tiempo acumulado antes de destruir el ViewModel
         if (accumulatedWorkTime > 0) {
             saveAccumulatedTime()
         }

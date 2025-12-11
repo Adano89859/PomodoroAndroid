@@ -23,6 +23,7 @@ import com.example.pomodoro.data.model.SessionType
 import com.example.pomodoro.data.model.TimerState
 import com.example.pomodoro.ui.dialogs.ProgressNoteDialog
 import com.example.pomodoro.ui.dialogs.CelebrationDialog
+import com.example.pomodoro.ui.dialogs.CoinRewardDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +38,16 @@ fun TimerScreen(
     val completedPomodoros by viewModel.completedPomodoros.collectAsState()
     val currentTask by viewModel.currentTask.collectAsState()
     val settings by viewModel.settings.collectAsState()
+
+    // NUEVO: Estados de monedas y recompensas
+    val userCoins by viewModel.userCoins.collectAsState()
+    val showCoinRewardDialog by viewModel.showCoinRewardDialog.collectAsState()
+    val lastCoinReward by viewModel.lastCoinReward.collectAsState()
+
+    // Estados de diálogos
+    val showProgressDialog by viewModel.showProgressDialog.collectAsState()
+    val showCelebrationDialog by viewModel.showCelebrationDialog.collectAsState()
+    val celebrationSessionType by viewModel.celebrationSessionType.collectAsState()
 
     // Calcular el progreso
     val totalTime = when (sessionType) {
@@ -53,6 +64,19 @@ fun TimerScreen(
             TopAppBar(
                 title = { Text("Pomodoro Timer") },
                 actions = {
+                    // NUEVO: Mostrar monedas
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    ) {
+                        Text(
+                            text = "🪙 $userCoins",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
                     IconButton(onClick = onNavigateToTasks) {
                         Icon(Icons.Default.CheckCircle, "Tareas")
                     }
@@ -80,14 +104,13 @@ fun TimerScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // NUEVO: Mostrar tarea actual de forma prominente
+            // Mostrar tarea actual
             currentTask?.let { task ->
                 CurrentTaskCard(
                     task = task,
                     viewModel = viewModel
                 )
             } ?: run {
-                // Mensaje cuando no hay tarea seleccionada
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -158,7 +181,6 @@ fun TimerScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Botón Skip
                 IconButton(
                     onClick = { viewModel.skipSession() },
                     enabled = timerState != TimerState.IDLE
@@ -170,7 +192,6 @@ fun TimerScreen(
                     )
                 }
 
-                // Botón principal (Play/Pause)
                 FloatingActionButton(
                     onClick = {
                         when (timerState) {
@@ -195,7 +216,6 @@ fun TimerScreen(
                     )
                 }
 
-                // Botón Reset
                 IconButton(
                     onClick = { viewModel.resetTimer() },
                     enabled = timerState != TimerState.IDLE
@@ -212,11 +232,7 @@ fun TimerScreen(
         }
     }
 
-    // NUEVO: Diálogos de progreso y celebración
-    val showProgressDialog by viewModel.showProgressDialog.collectAsState()
-    val showCelebrationDialog by viewModel.showCelebrationDialog.collectAsState()
-    val celebrationSessionType by viewModel.celebrationSessionType.collectAsState()
-
+    // Diálogos
     if (showProgressDialog) {
         ProgressNoteDialog(
             onDismiss = { viewModel.saveProgressNote("") },
@@ -230,9 +246,15 @@ fun TimerScreen(
             onDismiss = { viewModel.dismissCelebration() }
         )
     }
+
+    if (showCoinRewardDialog && lastCoinReward != null) {
+        CoinRewardDialog(
+            reward = lastCoinReward!!,
+            onDismiss = { viewModel.dismissCoinReward() }
+        )
+    }
 }
 
-// NUEVO: Card destacado para la tarea actual
 @Composable
 fun CurrentTaskCard(
     task: com.example.pomodoro.data.model.PomodoroTask,
@@ -250,7 +272,6 @@ fun CurrentTaskCard(
                 .fillMaxWidth()
                 .padding(20.dp)
         ) {
-            // Título de la tarea
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -271,7 +292,6 @@ fun CurrentTaskCard(
                 )
             }
 
-            // Descripción (si existe)
             if (task.description.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
@@ -285,12 +305,10 @@ fun CurrentTaskCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Estadísticas de la tarea
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                // Pomodoros completados
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -318,7 +336,6 @@ fun CurrentTaskCard(
                     )
                 }
 
-                // Divisor vertical
                 Divider(
                     modifier = Modifier
                         .height(40.dp)
@@ -326,7 +343,6 @@ fun CurrentTaskCard(
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f)
                 )
 
-                // Tiempo trabajado
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -374,7 +390,6 @@ fun CircularProgressIndicator(
             y = (size.height - diameter) / 2f
         )
 
-        // Círculo de fondo
         drawArc(
             color = color.copy(alpha = 0.1f),
             startAngle = -90f,
@@ -385,7 +400,6 @@ fun CircularProgressIndicator(
             style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
         )
 
-        // Arco de progreso
         drawArc(
             color = color,
             startAngle = -90f,
@@ -419,7 +433,6 @@ fun SessionIndicator(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Indicadores de pomodoros
         if (sessionType == SessionType.WORK) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -448,9 +461,9 @@ fun SessionIndicator(
 @Composable
 fun getSessionColor(sessionType: SessionType): Color {
     return when (sessionType) {
-        SessionType.WORK -> Color(0xFFE53935) // Rojo
-        SessionType.SHORT_BREAK -> Color(0xFF43A047) // Verde
-        SessionType.LONG_BREAK -> Color(0xFF1E88E5) // Azul
+        SessionType.WORK -> Color(0xFFE53935)
+        SessionType.SHORT_BREAK -> Color(0xFF43A047)
+        SessionType.LONG_BREAK -> Color(0xFF1E88E5)
     }
 }
 
