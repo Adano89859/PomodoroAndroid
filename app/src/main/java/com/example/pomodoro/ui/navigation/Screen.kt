@@ -1,8 +1,7 @@
-package com.example.pomodoro.ui.navigation
-
 sealed class Screen(val route: String) {
     object Timer : Screen("timer")
     object Tasks : Screen("tasks")
     object Settings : Screen("settings")
-    object Shop : Screen("shop")  // ← NUEVO
+    object Shop : Screen("shop")
+    object Stats : Screen("stats")  // ← NUEVO
 }
