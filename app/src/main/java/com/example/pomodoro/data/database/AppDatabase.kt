@@ -11,10 +11,11 @@ import com.example.pomodoro.data.model.User
 import com.example.pomodoro.data.model.UnlockedMusic
 import com.example.pomodoro.utils.MusicCatalog
 import com.example.pomodoro.data.model.DailyStats
+import com.example.pomodoro.data.model.PurchasedRoomItem
 
 @Database(
-    entities = [PomodoroTask::class, User::class, UnlockedMusic::class, DailyStats::class],
-    version = 6,
+    entities = [PomodoroTask::class, User::class, UnlockedMusic::class, DailyStats::class, PurchasedRoomItem::class],
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -22,6 +23,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun musicDao(): MusicDao
     abstract fun dailyStatsDao(): DailyStatsDao
+    abstract fun roomItemDao(): RoomItemDao
 
     companion object {
         @Volatile
@@ -41,7 +43,8 @@ abstract class AppDatabase : RoomDatabase() {
 
         private val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL("""
+                database.execSQL(
+                    """
                     CREATE TABLE IF NOT EXISTS user (
                         id INTEGER PRIMARY KEY NOT NULL,
                         coins INTEGER NOT NULL DEFAULT 0,
@@ -49,7 +52,8 @@ abstract class AppDatabase : RoomDatabase() {
                         totalTasksCompleted INTEGER NOT NULL DEFAULT 0,
                         totalNotesWritten INTEGER NOT NULL DEFAULT 0
                     )
-                """)
+                """
+                )
                 database.execSQL("INSERT OR IGNORE INTO user (id, coins) VALUES (1, 0)")
             }
         }
@@ -57,11 +61,13 @@ abstract class AppDatabase : RoomDatabase() {
         private val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 // Crear tabla de música desbloqueada
-                database.execSQL("""
+                database.execSQL(
+                    """
                     CREATE TABLE IF NOT EXISTS unlocked_music (
                         trackId INTEGER PRIMARY KEY NOT NULL
                     )
-                """)
+                """
+                )
 
                 // Desbloquear canciones gratuitas por defecto
                 MusicCatalog.freeTracks.forEach { trackId ->
@@ -72,7 +78,8 @@ abstract class AppDatabase : RoomDatabase() {
 
         private val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL("""
+                database.execSQL(
+                    """
                     CREATE TABLE IF NOT EXISTS daily_stats (
                         date TEXT PRIMARY KEY NOT NULL,
                         pomodorosCompleted INTEGER NOT NULL DEFAULT 0,
@@ -80,7 +87,20 @@ abstract class AppDatabase : RoomDatabase() {
                         notesWritten INTEGER NOT NULL DEFAULT 0,
                         timeWorkedInSeconds INTEGER NOT NULL DEFAULT 0
                     )
-                """)
+                """
+                )
+            }
+        }
+
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                CREATE TABLE IF NOT EXISTS purchased_room_items (
+                    itemId INTEGER PRIMARY KEY NOT NULL
+                )
+            """
+                )
             }
         }
 
@@ -91,7 +111,14 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "pomodoro_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)  // ← AGREGAR MIGRATION_5_6
+                    .addMigrations(
+                        MIGRATION_1_2,
+                        MIGRATION_2_3,
+                        MIGRATION_3_4,
+                        MIGRATION_4_5,
+                        MIGRATION_5_6,
+                        MIGRATION_6_7
+                    )
                     .build()
                 INSTANCE = instance
                 instance
