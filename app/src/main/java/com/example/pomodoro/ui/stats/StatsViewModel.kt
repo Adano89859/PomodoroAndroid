@@ -15,8 +15,6 @@ import com.example.pomodoro.data.repository.StatsRepository
 import com.example.pomodoro.data.repository.UserRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.*
 
 class StatsViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -56,15 +54,12 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
     private val _roomsStats = MutableStateFlow(RoomsStats())
     val roomsStats: StateFlow<RoomsStats> = _roomsStats.asStateFlow()
 
-    // ← NUEVO: Logros desbloqueados
     private val _unlockedAchievements = MutableStateFlow<List<Achievement>>(emptyList())
     val unlockedAchievements: StateFlow<List<Achievement>> = _unlockedAchievements.asStateFlow()
 
-    // ← NUEVO: Comparativa semanal
     private val _weeklyComparison = MutableStateFlow<WeeklyComparison?>(null)
     val weeklyComparison: StateFlow<WeeklyComparison?> = _weeklyComparison.asStateFlow()
 
-    // ← NUEVO: Mejor día
     private val _bestDay = MutableStateFlow<DailyStats?>(null)
     val bestDay: StateFlow<DailyStats?> = _bestDay.asStateFlow()
 
@@ -72,9 +67,33 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
         loadTotalStats()
         loadCurrentStreak()
         loadRoomsStats()
-        loadAchievements()  // ← NUEVO
-        loadWeeklyComparison()  // ← NUEVO
-        loadBestDay()  // ← NUEVO
+        loadWeeklyComparison()
+        loadBestDay()
+
+        // ← NUEVO: Recargar logros cada vez que cambian las estadísticas
+        viewModelScope.launch {
+            _totalStats.collect {
+                loadAchievements()
+            }
+        }
+
+        viewModelScope.launch {
+            _currentStreak.collect {
+                loadAchievements()
+            }
+        }
+
+        viewModelScope.launch {
+            unlockedMusicCount.collect {
+                loadAchievements()
+            }
+        }
+
+        viewModelScope.launch {
+            _roomsStats.collect {
+                loadAchievements()
+            }
+        }
     }
 
     private fun loadTotalStats() {
@@ -122,7 +141,6 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // ← NUEVO: Cargar logros desbloqueados
     private fun loadAchievements() {
         viewModelScope.launch {
             val totalStats = _totalStats.value
@@ -151,7 +169,6 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // ← NUEVO: Comparativa semanal
     private fun loadWeeklyComparison() {
         viewModelScope.launch {
             val last7 = last7Days.value
@@ -160,13 +177,10 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
-            // Calcular totales de esta semana (últimos 7 días)
             val thisWeekPomodoros = last7.sumOf { it.pomodorosCompleted }
             val thisWeekTasks = last7.sumOf { it.tasksCompleted }
             val thisWeekTime = last7.sumOf { it.timeWorkedInSeconds }
 
-            // Para semana anterior, necesitaríamos más datos
-            // Por ahora, comparamos con promedio
             val avgPomodorosPerDay = if (last7.isNotEmpty()) thisWeekPomodoros / last7.size else 0
 
             _weeklyComparison.value = WeeklyComparison(
@@ -178,7 +192,6 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // ← NUEVO: Mejor día
     private fun loadBestDay() {
         viewModelScope.launch {
             val last7 = last7Days.value
@@ -212,7 +225,6 @@ data class RoomsStats(
     val totalPercentage: Int = 0
 )
 
-// ← NUEVO: Comparativa semanal
 data class WeeklyComparison(
     val thisWeekPomodoros: Int,
     val thisWeekTasks: Int,
