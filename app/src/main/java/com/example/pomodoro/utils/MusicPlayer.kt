@@ -13,7 +13,7 @@ class MusicPlayer(private val context: Context) {
 
     private var mediaPlayer: MediaPlayer? = null
     private var currentTrackId: Int? = null
-    private var previewJob: Job? = null  // ← NUEVO
+    private var previewJob: Job? = null
 
     fun playTrack(trackId: Int, isEnabled: Boolean) {
         if (!isEnabled) {
@@ -43,22 +43,20 @@ class MusicPlayer(private val context: Context) {
         }
     }
 
-    // ← NUEVO: Reproducir preview de 5 segundos
     fun playPreview(trackId: Int, onComplete: () -> Unit = {}) {
-        stop()  // Detener cualquier reproducción actual
+        stop()
 
         val track = MusicCatalog.getTrackById(trackId)
 
         track?.let {
             try {
                 mediaPlayer = MediaPlayer.create(context, it.resourceId)?.apply {
-                    isLooping = false  // No loop para preview
-                    setVolume(0.6f, 0.6f)  // Volumen un poco más alto para preview
+                    isLooping = false
+                    setVolume(0.6f, 0.6f)
                     start()
                     currentTrackId = trackId
                 }
 
-                // Auto-detener después de 5 segundos
                 previewJob?.cancel()
                 previewJob = CoroutineScope(Dispatchers.Main).launch {
                     delay(5000)
@@ -71,7 +69,31 @@ class MusicPlayer(private val context: Context) {
         }
     }
 
-    // ← NUEVO: Detener preview
+    // ← NUEVO: Reproducir preview desde archivo local
+    fun playPreviewFromFile(filePath: String, onComplete: () -> Unit = {}) {
+        stop()
+
+        try {
+            mediaPlayer = MediaPlayer().apply {
+                setDataSource(filePath)
+                prepare()
+                isLooping = false
+                setVolume(0.6f, 0.6f)
+                start()
+            }
+
+            previewJob?.cancel()
+            previewJob = CoroutineScope(Dispatchers.Main).launch {
+                delay(5000)
+                stop()
+                onComplete()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            onComplete()
+        }
+    }
+
     fun stopPreview() {
         previewJob?.cancel()
         stop()
@@ -107,7 +129,7 @@ class MusicPlayer(private val context: Context) {
     }
 
     fun stop() {
-        previewJob?.cancel()  // ← NUEVO: Cancelar job de preview
+        previewJob?.cancel()
         mediaPlayer?.apply {
             if (isPlaying) {
                 stop()
