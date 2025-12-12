@@ -99,12 +99,13 @@ class MusicPlayer(private val context: Context) {
         stop()
     }
 
-    fun playMusicForSession(
+    suspend fun playMusicForSession(
         sessionType: SessionType,
         isEnabled: Boolean,
         workTrackId: Int,
         shortBreakTrackId: Int,
-        longBreakTrackId: Int
+        longBreakTrackId: Int,
+        importedMusicDao: com.example.pomodoro.data.database.ImportedMusicDao  // ← NUEVO parámetro
     ) {
         if (!isEnabled) {
             stop()
@@ -117,6 +118,16 @@ class MusicPlayer(private val context: Context) {
             SessionType.LONG_BREAK -> longBreakTrackId
         }
 
+        // ← NUEVO: Verificar si es música importada (ID negativo)
+        if (trackId < 0) {
+            val importedMusic = importedMusicDao.getImportedMusicById(-trackId)
+            if (importedMusic != null && importedMusic.isPurchased) {
+                playTrackFromFile(importedMusic.internalFilePath, true)
+                return
+            }
+        }
+
+        // Música normal del catálogo
         playTrack(trackId, true)
     }
 
@@ -146,5 +157,27 @@ class MusicPlayer(private val context: Context) {
 
     fun setVolume(volume: Float) {
         mediaPlayer?.setVolume(volume, volume)
+    }
+
+    // ← NUEVO: Reproducir música desde archivo local (para sesiones completas)
+    fun playTrackFromFile(filePath: String, isEnabled: Boolean) {
+        if (!isEnabled) {
+            stop()
+            return
+        }
+
+        stop()
+
+        try {
+            mediaPlayer = MediaPlayer().apply {
+                setDataSource(filePath)
+                prepare()
+                isLooping = true
+                setVolume(0.4f, 0.4f)
+                start()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }

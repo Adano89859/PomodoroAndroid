@@ -18,6 +18,7 @@ import com.example.pomodoro.data.model.MusicTrack
 import com.example.pomodoro.data.model.SessionType
 import com.example.pomodoro.ui.shop.ShopViewModel
 import com.example.pomodoro.utils.MusicCatalog
+import com.example.pomodoro.ui.importedmusic.ImportedMusicViewModel
 
 @Composable
 fun MusicSelectorDialog(
@@ -29,8 +30,16 @@ fun MusicSelectorDialog(
     onNavigateToShop: (() -> Unit)? = null
 ) {
     val shopViewModel: ShopViewModel = viewModel()
+    val importedMusicViewModel: ImportedMusicViewModel = viewModel()  // ← NUEVO
+
     val unlockedMusicIds by shopViewModel.unlockedMusicIds.collectAsState(initial = emptyList())
-    val previewingTrackId by shopViewModel.previewingTrackId.collectAsState()  // ← NUEVO
+    val previewingTrackId by shopViewModel.previewingTrackId.collectAsState()
+
+    // ← NUEVO: Obtener música importada comprada del tipo correspondiente
+    val allImportedMusic by importedMusicViewModel.allImportedMusic.collectAsState()
+    val purchasedImportedMusic = allImportedMusic.filter {
+        it.isPurchased && it.sessionType == sessionType
+    }
 
     val allTracks = MusicCatalog.getTracksByType(sessionType)
     val unlockedTracks = allTracks.filter { it.id in unlockedMusicIds }
@@ -50,7 +59,8 @@ fun MusicSelectorDialog(
             )
         },
         text = {
-            if (unlockedTracks.isEmpty()) {
+            if (unlockedTracks.isEmpty() && purchasedImportedMusic.isEmpty()) {  // ← ACTUALIZADO
+                // Mensaje si no hay canciones desbloqueadas
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -90,27 +100,70 @@ fun MusicSelectorDialog(
                     }
                 }
             } else {
+                // Lista de canciones desbloqueadas
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(400.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    // ← NUEVO: Mostrar música importada primero
+                    if (purchasedImportedMusic.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "🎵 Mis Canciones",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.tertiary,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
+                    }
+
+                    items(purchasedImportedMusic) { importedMusic ->
+                        ImportedMusicTrackItem(
+                            music = importedMusic,
+                            isSelected = currentTrackId == -importedMusic.id, // Negativo para distinguir
+                            onSelect = {
+                                onTrackSelected(-importedMusic.id)
+                                onDismiss()
+                            },
+                            onPreview = {
+                                importedMusicViewModel.playPreview(importedMusic)
+                            }
+                        )
+                    }
+
+                    // Separador si hay ambos tipos
+                    if (purchasedImportedMusic.isNotEmpty() && unlockedTracks.isNotEmpty()) {
+                        item {
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                            Text(
+                                text = "🎼 Música de la Tienda",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
+                    }
+
                     items(unlockedTracks) { track ->
                         MusicTrackItem(
                             track = track,
                             isSelected = track.id == currentTrackId,
-                            isPreviewing = track.id == previewingTrackId,  // ← NUEVO
+                            isPreviewing = track.id == previewingTrackId,
                             onSelect = {
                                 onTrackSelected(track.id)
                                 onDismiss()
                             },
                             onPreview = {
-                                shopViewModel.playPreview(track.id)  // ← ACTUALIZADO
+                                shopViewModel.playPreview(track.id)
                             }
                         )
                     }
 
+                    // Botón para ver más en la tienda
                     item {
                         onNavigateToShop?.let { navigate ->
                             Card(
@@ -154,6 +207,89 @@ fun MusicSelectorDialog(
             }
         }
     )
+}
+
+// ← NUEVO: Item para música importada
+@Composable
+fun ImportedMusicTrackItem(
+    music: com.example.pomodoro.data.model.ImportedMusic,
+    isSelected: Boolean,
+    onSelect: () -> Unit,
+    onPreview: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onSelect),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) {
+                MaterialTheme.colorScheme.tertiaryContainer
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isSelected) 4.dp else 1.dp
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = if (isSelected) {
+                        Icons.Default.CheckCircle
+                    } else {
+                        Icons.Default.MusicNote
+                    },
+                    contentDescription = null,
+                    tint = if (isSelected) {
+                        MaterialTheme.colorScheme.tertiary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
+                )
+
+                Column {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = music.displayName,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                        )
+                        Text(
+                            text = "🎵",
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                    Text(
+                        text = "Mi música",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                }
+            }
+
+            IconButton(onClick = onPreview) {
+                Icon(
+                    Icons.Default.PlayArrow,
+                    contentDescription = "Vista previa",
+                    tint = MaterialTheme.colorScheme.tertiary
+                )
+            }
+        }
+    }
 }
 
 @Composable

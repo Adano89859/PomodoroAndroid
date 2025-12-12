@@ -4,5 +4,6 @@ sealed class Screen(val route: String) {
     object Settings : Screen("settings")
     object Shop : Screen("shop")
     object Stats : Screen("stats")
-    object Rooms : Screen("rooms")  // ← NUEVO
+    object Rooms : Screen("rooms")
+    object ImportedMusic : Screen("imported_music")  // ← NUEVO
 }
