@@ -110,13 +110,17 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
         }
 
         if (_settings.value.soundEnabled) {
-            musicPlayer.playMusicForSession(
-                _sessionType.value,
-                true,
-                _settings.value.workMusicTrackId,
-                _settings.value.shortBreakMusicTrackId,
-                _settings.value.longBreakMusicTrackId
-            )
+            // ← ACTUALIZADO: Pasar el DAO
+            viewModelScope.launch {
+                musicPlayer.playMusicForSession(
+                    _sessionType.value,
+                    true,
+                    _settings.value.workMusicTrackId,
+                    _settings.value.shortBreakMusicTrackId,
+                    _settings.value.longBreakMusicTrackId,
+                    AppDatabase.getDatabase(getApplication()).importedMusicDao()  // ← NUEVO
+                )
+            }
         }
 
         timerJob = viewModelScope.launch {

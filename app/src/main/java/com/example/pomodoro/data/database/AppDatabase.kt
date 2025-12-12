@@ -12,10 +12,18 @@ import com.example.pomodoro.data.model.UnlockedMusic
 import com.example.pomodoro.utils.MusicCatalog
 import com.example.pomodoro.data.model.DailyStats
 import com.example.pomodoro.data.model.PurchasedRoomItem
+import com.example.pomodoro.data.model.ImportedMusic
 
 @Database(
-    entities = [PomodoroTask::class, User::class, UnlockedMusic::class, DailyStats::class, PurchasedRoomItem::class],
-    version = 7,
+    entities = [
+        PomodoroTask::class,
+        User::class,
+        UnlockedMusic::class,
+        DailyStats::class,
+        PurchasedRoomItem::class,
+        ImportedMusic::class
+    ],
+    version = 8,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -24,6 +32,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun musicDao(): MusicDao
     abstract fun dailyStatsDao(): DailyStatsDao
     abstract fun roomItemDao(): RoomItemDao
+    abstract fun importedMusicDao(): ImportedMusicDao
 
     companion object {
         @Volatile
@@ -60,7 +69,6 @@ abstract class AppDatabase : RoomDatabase() {
 
         private val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                // Crear tabla de música desbloqueada
                 database.execSQL(
                     """
                     CREATE TABLE IF NOT EXISTS unlocked_music (
@@ -69,7 +77,6 @@ abstract class AppDatabase : RoomDatabase() {
                 """
                 )
 
-                // Desbloquear canciones gratuitas por defecto
                 MusicCatalog.freeTracks.forEach { trackId ->
                     database.execSQL("INSERT OR IGNORE INTO unlocked_music (trackId) VALUES ($trackId)")
                 }
@@ -94,13 +101,27 @@ abstract class AppDatabase : RoomDatabase() {
 
         private val MIGRATION_6_7 = object : Migration(6, 7) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL(
-                    """
-                CREATE TABLE IF NOT EXISTS purchased_room_items (
-                    itemId INTEGER PRIMARY KEY NOT NULL
-                )
-            """
-                )
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS purchased_room_items (
+                        itemId INTEGER PRIMARY KEY NOT NULL
+                    )
+                """)
+            }
+        }
+
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS imported_music (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        displayName TEXT NOT NULL,
+                        originalFileName TEXT NOT NULL,
+                        internalFilePath TEXT NOT NULL,
+                        sessionType TEXT NOT NULL,
+                        isPurchased INTEGER NOT NULL DEFAULT 0,
+                        durationSeconds INTEGER NOT NULL DEFAULT 0
+                    )
+                """)
             }
         }
 
@@ -117,7 +138,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_3_4,
                         MIGRATION_4_5,
                         MIGRATION_5_6,
-                        MIGRATION_6_7
+                        MIGRATION_6_7,  // ← AGREGADA
+                        MIGRATION_7_8
                     )
                     .build()
                 INSTANCE = instance

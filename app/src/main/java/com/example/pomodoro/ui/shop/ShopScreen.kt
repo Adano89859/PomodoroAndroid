@@ -16,18 +16,20 @@ import com.example.pomodoro.data.model.MusicTrack
 import com.example.pomodoro.data.model.SessionType
 import com.example.pomodoro.ui.timer.PomodoroViewModel
 import com.example.pomodoro.utils.MusicCatalog
+import androidx.compose.foundation.clickable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShopScreen(
     viewModel: PomodoroViewModel,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToImportedMusic: () -> Unit
 ) {
     val shopViewModel: ShopViewModel = viewModel()
     val userCoins by viewModel.userCoins.collectAsState()
     val unlockedMusicIds by shopViewModel.unlockedMusicIds.collectAsState(initial = emptyList())
     val purchaseState by shopViewModel.purchaseState.collectAsState()
-    val previewingTrackId by shopViewModel.previewingTrackId.collectAsState()  // ← NUEVO
+    val previewingTrackId by shopViewModel.previewingTrackId.collectAsState()
 
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("🎯 Trabajo", "☁️ Descanso Corto", "😌 Descanso Largo")
@@ -73,6 +75,53 @@ fun ShopScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            // Botón para canciones importadas (ANTES de los tabs)
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .clickable { onNavigateToImportedMusic() },
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "🎵",
+                            style = MaterialTheme.typography.displaySmall
+                        )
+                        Column {
+                            Text(
+                                text = "Mis Canciones Personales",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.tertiary
+                            )
+                            Text(
+                                text = "Importa tu propia música",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        contentDescription = "Ver",
+                        tint = MaterialTheme.colorScheme.tertiary
+                    )
+                }
+            }
+
             TabRow(selectedTabIndex = selectedTab) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
@@ -101,12 +150,12 @@ fun ShopScreen(
                         track = track,
                         userCoins = userCoins,
                         isUnlocked = track.id in unlockedMusicIds,
-                        isPreviewing = track.id == previewingTrackId,  // ← NUEVO
+                        isPreviewing = track.id == previewingTrackId,
                         onPurchase = {
                             shopViewModel.purchaseTrack(track.id)
                         },
                         onPreview = {
-                            shopViewModel.playPreview(track.id)  // ← ACTUALIZADO
+                            shopViewModel.playPreview(track.id)
                         }
                     )
                 }
@@ -163,7 +212,7 @@ fun MusicTrackShopItem(
     track: MusicTrack,
     userCoins: Int,
     isUnlocked: Boolean,
-    isPreviewing: Boolean,  // ← NUEVO
+    isPreviewing: Boolean,
     onPurchase: () -> Unit,
     onPreview: () -> Unit
 ) {
@@ -171,7 +220,7 @@ fun MusicTrackShopItem(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isPreviewing) {  // ← NUEVO
+            containerColor = if (isPreviewing) {
                 MaterialTheme.colorScheme.tertiaryContainer
             } else {
                 MaterialTheme.colorScheme.surface
@@ -207,7 +256,6 @@ fun MusicTrackShopItem(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    // ← NUEVO: Indicador de preview
                     if (isPreviewing) {
                         Text(
                             text = "Reproduciendo preview...",
@@ -218,10 +266,9 @@ fun MusicTrackShopItem(
                 }
             }
 
-            // Botón de preview con icono dinámico
             IconButton(onClick = onPreview) {
                 Icon(
-                    if (isPreviewing) Icons.Default.Stop else Icons.Default.PlayArrow,  // ← NUEVO
+                    if (isPreviewing) Icons.Default.Stop else Icons.Default.PlayArrow,
                     contentDescription = if (isPreviewing) "Detener" else "Preview",
                     tint = if (isPreviewing) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
                 )

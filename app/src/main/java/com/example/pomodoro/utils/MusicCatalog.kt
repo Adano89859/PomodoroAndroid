@@ -52,4 +52,11 @@ object MusicCatalog {
             SessionType.LONG_BREAK -> longBreakTracks
         }
     }
+
+    // ← NUEVO: Método para obtener track desde música importada
+    fun getImportedTrackById(id: Int): MusicTrack? {
+        // Este método será usado por el selector de música
+        // Retorna un MusicTrack adaptado desde ImportedMusic
+        return null // Implementación en el selector
+    }
 }

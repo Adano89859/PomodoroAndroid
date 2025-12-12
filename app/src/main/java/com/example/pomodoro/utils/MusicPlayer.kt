@@ -13,7 +13,7 @@ class MusicPlayer(private val context: Context) {
 
     private var mediaPlayer: MediaPlayer? = null
     private var currentTrackId: Int? = null
-    private var previewJob: Job? = null  // ← NUEVO
+    private var previewJob: Job? = null
 
     fun playTrack(trackId: Int, isEnabled: Boolean) {
         if (!isEnabled) {
@@ -43,22 +43,20 @@ class MusicPlayer(private val context: Context) {
         }
     }
 
-    // ← NUEVO: Reproducir preview de 5 segundos
     fun playPreview(trackId: Int, onComplete: () -> Unit = {}) {
-        stop()  // Detener cualquier reproducción actual
+        stop()
 
         val track = MusicCatalog.getTrackById(trackId)
 
         track?.let {
             try {
                 mediaPlayer = MediaPlayer.create(context, it.resourceId)?.apply {
-                    isLooping = false  // No loop para preview
-                    setVolume(0.6f, 0.6f)  // Volumen un poco más alto para preview
+                    isLooping = false
+                    setVolume(0.6f, 0.6f)
                     start()
                     currentTrackId = trackId
                 }
 
-                // Auto-detener después de 5 segundos
                 previewJob?.cancel()
                 previewJob = CoroutineScope(Dispatchers.Main).launch {
                     delay(5000)
@@ -71,18 +69,43 @@ class MusicPlayer(private val context: Context) {
         }
     }
 
-    // ← NUEVO: Detener preview
+    // ← NUEVO: Reproducir preview desde archivo local
+    fun playPreviewFromFile(filePath: String, onComplete: () -> Unit = {}) {
+        stop()
+
+        try {
+            mediaPlayer = MediaPlayer().apply {
+                setDataSource(filePath)
+                prepare()
+                isLooping = false
+                setVolume(0.6f, 0.6f)
+                start()
+            }
+
+            previewJob?.cancel()
+            previewJob = CoroutineScope(Dispatchers.Main).launch {
+                delay(5000)
+                stop()
+                onComplete()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            onComplete()
+        }
+    }
+
     fun stopPreview() {
         previewJob?.cancel()
         stop()
     }
 
-    fun playMusicForSession(
+    suspend fun playMusicForSession(
         sessionType: SessionType,
         isEnabled: Boolean,
         workTrackId: Int,
         shortBreakTrackId: Int,
-        longBreakTrackId: Int
+        longBreakTrackId: Int,
+        importedMusicDao: com.example.pomodoro.data.database.ImportedMusicDao  // ← NUEVO parámetro
     ) {
         if (!isEnabled) {
             stop()
@@ -95,6 +118,16 @@ class MusicPlayer(private val context: Context) {
             SessionType.LONG_BREAK -> longBreakTrackId
         }
 
+        // ← NUEVO: Verificar si es música importada (ID negativo)
+        if (trackId < 0) {
+            val importedMusic = importedMusicDao.getImportedMusicById(-trackId)
+            if (importedMusic != null && importedMusic.isPurchased) {
+                playTrackFromFile(importedMusic.internalFilePath, true)
+                return
+            }
+        }
+
+        // Música normal del catálogo
         playTrack(trackId, true)
     }
 
@@ -107,7 +140,7 @@ class MusicPlayer(private val context: Context) {
     }
 
     fun stop() {
-        previewJob?.cancel()  // ← NUEVO: Cancelar job de preview
+        previewJob?.cancel()
         mediaPlayer?.apply {
             if (isPlaying) {
                 stop()
@@ -124,5 +157,27 @@ class MusicPlayer(private val context: Context) {
 
     fun setVolume(volume: Float) {
         mediaPlayer?.setVolume(volume, volume)
+    }
+
+    // ← NUEVO: Reproducir música desde archivo local (para sesiones completas)
+    fun playTrackFromFile(filePath: String, isEnabled: Boolean) {
+        if (!isEnabled) {
+            stop()
+            return
+        }
+
+        stop()
+
+        try {
+            mediaPlayer = MediaPlayer().apply {
+                setDataSource(filePath)
+                prepare()
+                isLooping = true
+                setVolume(0.4f, 0.4f)
+                start()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }
